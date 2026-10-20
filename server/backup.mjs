@@ -1,0 +1,12 @@
+import { openDatabase } from "./db.mjs";
+import { existsSync, mkdirSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+const dest = process.argv[2];
+if (!dest) throw Error("Usage: npm run backup -- /absolute/path/backup.sqlite");
+const path = resolve(dest);
+if (existsSync(path)) throw Error("Destination already exists");
+mkdirSync(dirname(path), { recursive: true });
+const db = openDatabase();
+db.exec("VACUUM INTO '" + path.replaceAll("'", "''") + "'");
+db.close();
+console.log("Consistent SQLite backup created:", path);

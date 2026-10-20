@@ -1,0 +1,116 @@
+/* Independent neutral Select2 skin; no Metronic proprietary assets. */
+.form-field > .select2-container {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+.select2-container--mahzoof {
+  font-family: Dana, sans-serif;
+  font-size: 12px;
+}
+.select2-container--mahzoof .select2-selection--single {
+  height: 38px;
+  border: 1px solid #dbe0e9;
+  border-radius: 6px;
+  background: #fff;
+  outline: none;
+  transition:
+    border-color 0.12s,
+    box-shadow 0.12s;
+}
+.select2-container--mahzoof
+  .select2-selection--single
+  .select2-selection__rendered {
+  display: block;
+  padding: 6px 11px 6px 32px;
+  line-height: 24px;
+  color: var(--ink);
+  text-align: right;
+}
+.select2-container--mahzoof .select2-selection__arrow {
+  position: absolute;
+  left: 15px;
+  top: 13px;
+  width: 7px;
+  height: 7px;
+  border-left: 1.5px solid #78829d;
+  border-bottom: 1.5px solid #78829d;
+  transform: rotate(-45deg);
+}
+.select2-container--mahzoof.select2-container--open .select2-selection__arrow {
+  transform: rotate(135deg);
+  top: 17px;
+}
+.select2-container--mahzoof.select2-container--focus .select2-selection,
+.select2-container--mahzoof.select2-container--open .select2-selection {
+  border-color: #70b1ff;
+  box-shadow: 0 0 0 3px #1b84ff0b;
+}
+.select2-container--mahzoof.select2-container--disabled .select2-selection {
+  background: #f5f6f9;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.select2-container--mahzoof.select2-container--disabled
+  .select2-selection__rendered {
+  color: #78829d;
+}
+.form-field
+  > select.ng-invalid.ng-touched
+  + .select2-container
+  .select2-selection {
+  border-color: #f1416c;
+}
+.select2-container--mahzoof .select2-dropdown {
+  background: #fff;
+  border: 1px solid #dbe0e9;
+  border-radius: 6px;
+  box-shadow: 0 5px 18px #1e293b12;
+  overflow: hidden;
+  z-index: 1100;
+}
+.select2-container--mahzoof .select2-search--dropdown {
+  padding: 10px;
+}
+.select2-container--mahzoof .select2-search--dropdown .select2-search__field {
+  border: 1px solid #dbe0e9;
+  border-radius: 5px;
+  padding: 8px 11px;
+  min-height: 38px;
+  font: inherit;
+  outline: none;
+  direction: rtl;
+  color: var(--ink);
+  background: #fff;
+}
+.select2-container--mahzoof .select2-search__field:focus {
+  border-color: #70b1ff;
+}
+.select2-container--mahzoof .select2-results__options {
+  max-height: 240px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.select2-container--mahzoof .select2-results__option {
+  padding: 10px 14px;
+  line-height: 1.8;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.select2-container--mahzoof .select2-results__option--selected {
+  background: #f1f3f5;
+  color: #27364b;
+}
+.select2-container--mahzoof .select2-results__option--highlighted {
+  background: #e9edf2;
+  color: #172033;
+}
+.select2-container--mahzoof .select2-results__option--disabled,
+.select2-container--mahzoof .select2-results__message {
+  color: #78829d;
+}
+/* The native control remains Angular's value accessor, outside visual layout. */
+.form-field > select.select2-hidden-accessible {
+  min-height: 0 !important;
+  padding: 0 !important;
+}

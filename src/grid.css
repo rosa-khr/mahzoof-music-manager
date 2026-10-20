@@ -1,0 +1,276 @@
+/* Shared AG Grid Material layout with a neutral gray and white theme. */
+app-data-grid {
+  display: block;
+  min-width: 0;
+  width: 100%;
+}
+.resource-grid {
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  border-radius: 9px;
+  background: #ffffff;
+  box-shadow: 0 16px 40px #11182705;
+  margin-bottom: 24px;
+  min-width: 0;
+}
+.resource-grid-heading {
+  display: flex;
+  min-height: 62px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 12px 16px;
+}
+.resource-grid-heading > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.resource-grid-heading strong {
+  color: #374151;
+  font-size: 12px;
+  font-weight: 600;
+}
+.resource-grid-heading span {
+  color: #6b7280;
+  font-size: 10px;
+}
+.resource-grid-heading > span {
+  flex: 0 0 auto;
+  color: #6b7280;
+}
+.resource-grid-wrap {
+  width: 100%;
+  min-height: 260px;
+  overflow: hidden;
+  --ag-font-family: "Dana", Tahoma, sans-serif;
+  --ag-font-size: 11px;
+  --ag-background-color: #ffffff;
+  --ag-foreground-color: #374151;
+  --ag-border-color: #e5e7eb;
+  --ag-header-background-color: #f3f4f6;
+  --ag-header-foreground-color: #4b5563;
+  --ag-odd-row-background-color: #ffffff;
+  --ag-row-hover-color: #f5f6f8;
+  --ag-selected-row-background-color: #f3f4f6;
+  --ag-input-border-color: #d1d5db;
+  --ag-input-focus-border-color: #9ca3af;
+  --ag-accent-color: #4b5563;
+  --ag-material-primary-color: #4b5563;
+  --ag-material-accent-color: #4b5563;
+  --ag-checkbox-checked-color: #4b5563;
+  --ag-row-border-color: #eef0f3;
+  --ag-wrapper-border-radius: 0;
+  --ag-cell-horizontal-padding: 13px;
+  --ag-icon-size: 14px;
+}
+.resource-data-grid {
+  width: 100%;
+  height: 100%;
+}
+.resource-grid-wrap .ag-root-wrapper {
+  border: 0;
+  border-radius: 0;
+}
+.resource-grid-wrap .ag-header {
+  border-bottom-color: #e5e7eb;
+}
+.resource-grid-wrap .ag-header-cell-label {
+  font-weight: 700;
+}
+.resource-grid-wrap .ag-cell {
+  display: flex;
+  align-items: center;
+}
+.resource-grid-wrap .ag-cell-value {
+  min-width: 0;
+}
+.resource-grid-wrap .grid-status-cell {
+  justify-content: center;
+}
+.resource-grid-wrap .grid-status-header .ag-header-cell-label {
+  justify-content: center;
+}
+.resource-grid-wrap .ag-paging-panel {
+  min-height: 52px;
+  border-top-color: #e5e7eb;
+  color: #6b7280;
+  gap: 10px;
+  padding-inline: 14px;
+}
+.resource-grid-wrap .ag-paging-page-size .ag-picker-field-wrapper {
+  min-height: 32px;
+  border-color: #d1d5db;
+  border-radius: 5px;
+  background: #fff;
+}
+.resource-grid-wrap .ag-overlay-loading-center,
+.resource-grid-wrap .ag-overlay-no-rows-center {
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+  background: #ffffff;
+  padding: 12px 18px;
+  box-shadow: 0 12px 30px #11182708;
+  color: #6b7280;
+}
+.resource-grid-wrap .grid-ltr {
+  direction: ltr;
+  justify-content: flex-end;
+  unicode-bidi: plaintext;
+}
+.grid-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  height: 100%;
+}
+.grid-row-actions a,
+.grid-row-actions button {
+  display: grid;
+  width: 29px;
+  height: 29px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #4b5563;
+  flex-shrink: 0;
+}
+.grid-row-actions a:hover,
+.grid-row-actions button:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+.grid-row-actions svg {
+  width: 15px;
+  height: 15px;
+}
+.grid-row-actions :disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.grid-lines {
+  line-height: 1.5;
+  overflow: hidden;
+}
+.grid-lines small {
+  font-size: 9px;
+  color: #6b7280;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.schedule-card,
+.followup-card,
+.renewal-card {
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+.schedule-card .resource-grid,
+.followup-card .resource-grid,
+.renewal-card .resource-grid {
+  margin-bottom: 0;
+  height: 100%;
+}
+.resource-grid .status {
+  font-size: 10px;
+  padding: 3px 8px;
+}
+.ag-popup {
+  font-family: "Dana", sans-serif;
+  font-size: 11px;
+}
+@media (max-width: 650px) {
+  .resource-grid-heading {
+    gap: 8px;
+    padding-inline: 12px;
+  }
+  .resource-grid-heading span {
+    font-size: 9px;
+  }
+  .resource-grid-wrap .ag-paging-panel {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 84px;
+    padding: 8px;
+    gap: 5px 10px;
+    justify-content: center;
+  }
+  .resource-grid-wrap .ag-paging-row-summary-panel,
+  .resource-grid-wrap .ag-paging-page-summary-panel,
+  .resource-grid-wrap .ag-paging-page-size {
+    margin: 0;
+  }
+  .resource-grid-wrap .ag-paging-page-size {
+    flex: 1 0 100%;
+    justify-content: center;
+  }
+  .resource-grid-wrap .ag-cell,
+  .resource-grid-wrap .ag-header-cell {
+    padding-inline: 10px;
+  }
+}
+
+/* v36 adds a content wrapper around the paging controls. */
+.resource-grid-wrap .ag-paging-panel-content {
+  gap: 14px;
+}
+.resource-grid-wrap .ag-paging-row-summary-panel,
+.resource-grid-wrap .ag-paging-row-summary-content {
+  white-space: nowrap;
+}
+.resource-grid-wrap .ag-paging-page-summary-panel {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.resource-grid-wrap .ag-paging-description {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1.8;
+  white-space: nowrap;
+}
+.dashboard-grid:has(.schedule-card),
+.lower-dashboard {
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (max-width: 650px) {
+  .resource-grid-wrap .ag-paging-panel-content {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    min-width: 0;
+    width: 100%;
+    justify-content: center;
+    gap: 8px 12px;
+    padding: 0;
+  }
+  .resource-grid-wrap .ag-paging-row-summary-panel {
+    display: none;
+  }
+  .resource-grid-wrap .ag-paging-page-summary-panel {
+    gap: 6px;
+  }
+  .resource-grid-wrap .ag-paging-page-size {
+    flex: 1 0 100%;
+    justify-content: center;
+  }
+}
+
+.resource-grid-wrap .ag-floating-filter {
+  background: #f9fafb;
+}
+.resource-grid-wrap .ag-floating-filter-input {
+  min-height: 28px;
+  border-radius: 4px;
+  background: #fff;
+  color: #374151;
+}
+.resource-grid-wrap .ag-filter-active {
+  color: #4b5563;
+}
