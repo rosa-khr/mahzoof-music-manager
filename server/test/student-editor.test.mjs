@@ -243,3 +243,51 @@ test("editing shared guardian preserves sibling contacts and education history",
   assert.deepEqual(r.body.enrollments, a.enrollments);
   assert.equal(r.body.terms.length, 0);
 });
+
+test("student age and address persist, validate atomically, preserve legacy edits and respect privacy", async () => {
+  let r = await call("/students", {
+    method: "POST",
+    data: { ...fields, age: 24, address: "تهران، خیابان موسیقی" },
+  });
+  assert.equal(r.status, 201);
+  const id = r.body.id;
+  assert.equal(r.body.age, 24);
+  assert.equal(r.body.address, "تهران، خیابان موسیقی");
+  r = await call(`/students/${id}`, {
+    method: "PATCH",
+    data: { ...fields, version: 1 },
+  });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.age, 24);
+  assert.equal(r.body.address, "تهران، خیابان موسیقی");
+  for (const age of [-1, 131, 1.5, true, "abc"]) {
+    assert.equal(
+      (
+        await call(`/students/${id}`, {
+          method: "PATCH",
+          data: { ...fields, version: 2, age, address: "نباید ذخیره شود" },
+        })
+      ).status,
+      422,
+    );
+    assert.equal(
+      (await call("/students", { method: "POST", data: { ...fields, age } }))
+        .status,
+      422,
+    );
+  }
+  const saved = (await call(`/students/${id}`)).body;
+  assert.equal(saved.version, 2);
+  assert.equal(saved.address, "تهران، خیابان موسیقی");
+  const privateView = (await call(`/students/${id}`, { user: accountant }))
+    .body;
+  assert.equal(privateView.age, undefined);
+  assert.equal(privateView.address, undefined);
+  r = await call(`/students/${id}`, {
+    method: "PATCH",
+    data: { ...fields, version: 2, age: null, address: "" },
+  });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.age, null);
+  assert.equal(r.body.address, "");
+});

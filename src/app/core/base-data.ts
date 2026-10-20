@@ -1,5 +1,13 @@
 export const BASE_RESOURCES = [
   {
+    key: "session-statuses",
+    title: "وضعیت جلسات ترم",
+    singular: "وضعیت جلسه",
+    icon: "check",
+    nameLabel: "عنوان وضعیت",
+    phone: false,
+  },
+  {
     key: "teaching-types",
     title: "نوع تدریس",
     singular: "نوع تدریس",
@@ -26,6 +34,7 @@ export const BASE_RESOURCES = [
 ] as const;
 export type BaseResource = (typeof BASE_RESOURCES)[number];
 export interface BaseRecord {
+  code?: string;
   id: number;
   name: string;
   notes: string;

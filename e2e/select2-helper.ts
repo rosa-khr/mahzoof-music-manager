@@ -9,6 +9,11 @@ export async function chooseSelect2(
   label: string,
   choice: string | { index: number },
 ) {
+  const studentSubject = label === "واحد آموزشی موردنظر *";
+  if (studentSubject)
+    await page
+      .getByRole("tab", { name: "اطلاعات ساز و جلسه", exact: true })
+      .click();
   const select = nativeSelect(page, label);
   const text = await select.evaluate((el, wanted) => {
     const options = Array.from((el as HTMLSelectElement).options);
@@ -27,4 +32,6 @@ export async function chooseSelect2(
     .fill("");
   await page.getByRole("option", { name: text, exact: true }).click();
   await expect(combo).toContainText(text);
+  if (studentSubject)
+    await page.getByRole("tab", { name: "اطلاعات فردی", exact: true }).click();
 }

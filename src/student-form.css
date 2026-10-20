@@ -231,3 +231,54 @@
     flex: 1;
   }
 }
+.student-editor[hidden],
+.student-editor [hidden] {
+  display: none !important;
+}
+.student-management-tabs {
+  margin-bottom: 20px;
+}
+.attendance-row-controls {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 100%;
+}
+.attendance-radios {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 7px;
+  flex: 1;
+  min-width: 0;
+}
+.attendance-radios label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  line-height: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.attendance-radios input {
+  flex-shrink: 0;
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  accent-color: #1b84ff;
+}
+.attendance-radios label span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.attendance-row-controls .grid-row-actions {
+  display: grid;
+  width: 25px;
+  height: auto;
+  gap: 2px;
+}
+.attendance-row-controls .grid-row-actions a,
+.attendance-row-controls .grid-row-actions button {
+  width: 23px;
+  height: 23px;
+}

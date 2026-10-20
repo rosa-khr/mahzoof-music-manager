@@ -1,5 +1,6 @@
 import {
   studentUpload,
+  studentPersonal,
   studentPhoto,
   saveStudentPhoto,
   photoUrl,
@@ -143,6 +144,8 @@ export function studentView(db, id, role) {
       "timezone",
       "first_registered",
       "created_at",
+      "address",
+      "age",
     ])
       delete student[key];
   }
@@ -295,6 +298,7 @@ export function installEducation(app, db) {
     requireRole(req, ["admin", "secretary"]);
     const b = req.body;
     const photo = await studentPhoto(req);
+    const personal = studentPersonal(b);
     const id = transaction(db, () => {
       const first = text(b.firstName, "نام فارسی", 100, true),
         last = text(b.lastName, "نام خانوادگی فارسی", 100, true),
@@ -321,7 +325,7 @@ export function installEducation(app, db) {
       const id = Number(
         run(
           db,
-          "INSERT INTO students(first_name,last_name,english_first,english_last,phone,timezone,history,missing_contact_reason,search_text) VALUES(?,?,?,?,?,?,?,?,?)",
+          "INSERT INTO students(first_name,last_name,english_first,english_last,phone,timezone,history,missing_contact_reason,search_text,address,age) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
           first,
           last,
           ef,
@@ -331,6 +335,8 @@ export function installEducation(app, db) {
           choice(b.history || "unknown", ["new", "old", "unknown"], "سابقه"),
           reason,
           search,
+          personal.address,
+          personal.age,
         ).lastInsertRowid,
       );
       const code = "M-" + String(id).padStart(6, "0");

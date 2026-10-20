@@ -90,15 +90,28 @@ import { Icon } from "../shared/icon";
           <div class="student-editor-side">
             <section class="student-form-section student-form-settings">
               <header><h2>وضعیت</h2></header>
-              <app-switch
-                formControlName="status"
-                onValue="active"
-                offValue="inactive"
-                label="وضعیت"
-              />
-              <p class="form-text">
-                برای نگهداری سوابق، رکوردهای غیرقابل استفاده را غیرفعال کنید.
-              </p>
+              @if (resource.key !== "session-statuses") {
+                <app-switch
+                  formControlName="status"
+                  onValue="active"
+                  offValue="inactive"
+                  label="وضعیت"
+                />
+              }
+              @if (resource.key === "session-statuses") {
+                <p class="form-text">
+                  کد وضعیت: <bdi>{{ record?.code }}</bdi>
+                </p>
+                <p class="form-text">
+                  چهار وضعیت و اثر آن‌ها بر سهم ترم ثابت‌اند؛ عنوان و توضیحات
+                  قابل ویرایش هستند.
+                </p>
+              }
+              @if (resource.key !== "session-statuses") {
+                <p class="form-text">
+                  برای نگهداری سوابق، رکوردهای غیرقابل استفاده را غیرفعال کنید.
+                </p>
+              }
             </section>
           </div>
         </fieldset>

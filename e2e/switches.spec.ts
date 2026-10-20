@@ -44,11 +44,15 @@ test("fixed labels, sm controls and persisted student active/archive switches", 
     name: "واحد آموزشی موردنظر *",
     exact: true,
   });
+  await page
+    .getByRole("tab", { name: "اطلاعات ساز و جلسه", exact: true })
+    .click();
   await combo.click();
   await page.getByRole("option", { name: "پیانو", exact: true }).click();
   expect(await combo.evaluate((el) => el.getBoundingClientRect().height)).toBe(
     38,
   );
+  await page.getByRole("tab", { name: "اطلاعات فردی", exact: true }).click();
   const active = page.getByRole("switch", {
     name: "فعال بودن هنرجو",
     exact: true,

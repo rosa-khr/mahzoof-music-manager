@@ -19,6 +19,9 @@ test("Select2 RTL search, Persian normalization, keyboard, validation and cleanu
   const label = "واحد آموزشی موردنظر *";
   const combo = page.getByRole("combobox", { name: label, exact: true });
   await expect(page.locator("select.select2-hidden-accessible")).toHaveCount(2);
+  await page
+    .getByRole("tab", { name: "اطلاعات ساز و جلسه", exact: true })
+    .click();
   await combo.click();
   const search = page.getByRole("searchbox", {
     name: "جست‌وجو در " + label,
@@ -44,6 +47,7 @@ test("Select2 RTL search, Persian normalization, keyboard, validation and cleanu
   await search.press("Enter");
   await expect(combo).toContainText("پیانو");
   await expect(nativeSelect(page, label)).toHaveValue("1");
+  await page.getByRole("tab", { name: "اطلاعات فردی", exact: true }).click();
   const history = page.getByRole("combobox", {
     name: "سابقه ثبت‌نام",
     exact: true,
@@ -64,6 +68,9 @@ test("Select2 RTL search, Persian normalization, keyboard, validation and cleanu
   await expect(page.locator(".student-editor")).toContainText(
     "فیلدهای الزامی را تکمیل کنید.",
   );
+  await page
+    .getByRole("tab", { name: "اطلاعات ساز و جلسه", exact: true })
+    .click();
   await expect(combo).toContainText("پیانو");
   await combo.click();
   await search.press("Escape");

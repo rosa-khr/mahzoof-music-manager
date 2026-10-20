@@ -122,6 +122,23 @@ export function photoUrl(db, id) {
   );
   return photo ? `/api/students/${id}/photo?v=${photo.revision}` : null;
 }
+export function studentPersonal(body, old = {}) {
+  const address =
+    body.address === undefined
+      ? old.address || ""
+      : text(body.address, "آدرس", 2000);
+  const value = body.age === undefined ? old.age : body.age;
+  let age = null;
+  if (value !== undefined && value !== null && value !== "") {
+    assert(
+      typeof value === "number" ||
+        (typeof value === "string" && /^\d+$/.test(value)),
+      "سن نامعتبر است",
+    );
+    age = integer(value, "سن", 0, 130);
+  }
+  return { address, age };
+}
 export function installStudentEditor(app, db, view) {
   app.get("/api/students/:id/photo", (req, res) => {
     const id = integer(req.params.id, "هنرجو");
@@ -153,6 +170,7 @@ export function installStudentEditor(app, db, view) {
         409,
       );
       const b = req.body;
+      const personal = studentPersonal(b, old);
       const first = text(b.firstName, "نام فارسی", 100, true),
         last = text(b.lastName, "نام خانوادگی فارسی", 100, true),
         ef = text(b.englishFirst, "نام انگلیسی", 100),
@@ -229,7 +247,7 @@ export function installStudentEditor(app, db, view) {
       );
       run(
         db,
-        "UPDATE students SET first_name=?,last_name=?,english_first=?,english_last=?,phone=?,timezone=?,history=?,missing_contact_reason=?,status=?,search_text=?,version=version+1 WHERE id=?",
+        "UPDATE students SET first_name=?,last_name=?,english_first=?,english_last=?,phone=?,timezone=?,history=?,missing_contact_reason=?,status=?,search_text=?,address=?,age=?,version=version+1 WHERE id=?",
         first,
         last,
         ef,
@@ -242,6 +260,8 @@ export function installStudentEditor(app, db, view) {
         normalize(
           [first, last, ef, el, phone, ...contacts, old.code].join(" "),
         ),
+        personal.address,
+        personal.age,
         id,
       );
       saveStudentPhoto(db, id, photo);

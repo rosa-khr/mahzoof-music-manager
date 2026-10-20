@@ -255,12 +255,12 @@ export const statusLabels: Record<string, string> = {
   partial: "پرداخت جزئی",
   settled: "تسویه‌شده",
 };
-export function statusCell(value: string, note = "") {
+export function statusCell(value: string, note = "", label?: string) {
   const container = document.createElement("div");
   const badge = document.createElement("span");
   badge.className = "status";
   badge.dataset["status"] = value;
-  badge.textContent = statusLabels[value] || value;
+  badge.textContent = label || statusLabels[value] || value;
   container.append(badge);
   if (note) {
     const small = document.createElement("small");
@@ -286,7 +286,8 @@ export function statusColumn<T>(
     filterValueGetter: (p) =>
       statusLabels[String(p.getValue(field as string))] ||
       String(p.getValue(field as string) ?? ""),
-    cellRenderer: (p: ICellRendererParams<T>) => statusCell(String(p.value)),
+    cellRenderer: (p: ICellRendererParams<T>) =>
+      p.data && p.value != null ? statusCell(String(p.value)) : "",
   };
 }
 export interface GridAction {

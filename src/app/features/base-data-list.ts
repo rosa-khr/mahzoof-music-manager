@@ -25,12 +25,14 @@ import { Icon } from "../shared/icon";
       [title]="resource.title"
       subtitle="اطلاعات پایه • جست‌وجو و فیلتر داخل ستون‌های جدول"
     >
-      <a
-        class="btn btn-primary"
-        [routerLink]="[path, 'new']"
-        [queryParams]="route.snapshot.queryParams"
-        ><app-icon name="plus" />ثبت {{ resource.singular }}</a
-      >
+      @if (resource.key !== "session-statuses") {
+        <a
+          class="btn btn-primary"
+          [routerLink]="[path, 'new']"
+          [queryParams]="route.snapshot.queryParams"
+          ><app-icon name="plus" />ثبت {{ resource.singular }}</a
+        >
+      }
     </app-header>
     @if (error) {
       <p class="alert alert-danger" role="alert">
@@ -68,6 +70,16 @@ export class BaseDataList {
   pendingPage: number | null = null;
   columns: ColDef<BaseRecord>[] = [
     { field: "name", headerName: this.resource.nameLabel, minWidth: 230 },
+    ...(this.resource.key === "session-statuses"
+      ? [
+          {
+            field: "code" as const,
+            headerName: "کد ثابت",
+            minWidth: 170,
+            cellClass: "grid-ltr",
+          },
+        ]
+      : []),
     ...(this.resource.key === "instruments"
       ? [
           {

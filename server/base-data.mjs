@@ -8,6 +8,11 @@ const resources = {
   "teaching-types": { table: "teaching_types", title: "نوع تدریس" },
   instructors: { table: "instructors", title: "مدرس", phone: true },
   instruments: { table: "instruments", title: "ساز", english: true },
+  "session-statuses": {
+    table: "session_statuses",
+    title: "وضعیت جلسه",
+    fixed: true,
+  },
 };
 function config(req) {
   requireRole(req, ["admin", "secretary"]);
@@ -19,7 +24,7 @@ function config(req) {
   return resources[req.params.resource];
 }
 const columns = (c) =>
-  `id,name,notes,status,version,created_at${c.phone ? ",phone" : ""}${c.english ? ",english_name" : ""}`;
+  `id,name,notes,status,version,created_at${c.phone ? ",phone" : ""}${c.english ? ",english_name" : ""}${c.fixed ? ",code" : ""}`;
 function record(db, c, id) {
   const row = one(db, `SELECT ${columns(c)} FROM ${c.table} WHERE id=?`, id);
   assert(row, `${c.title} یافت نشد`, 404);
@@ -34,6 +39,7 @@ function validate(c, body) {
     notes = text(body.notes, "توضیحات", 2000),
     status = choice(body.status ?? "active", ["active", "inactive"], "وضعیت");
   const phone = c.phone ? text(body.phone, "شماره تماس", 30) : "";
+  if (c.fixed) assert(status === "active", "چهار وضعیت جلسه باید فعال بمانند");
   if (phone)
     assert(/^\+?[0-9 ()-]{6,30}$/.test(phone), "شماره تماس نامعتبر است");
   return {
@@ -58,6 +64,7 @@ export function installBaseData(app, db) {
       status: "CASE status WHEN 'active' THEN 'فعال' ELSE 'غیرفعال' END",
       ...(c.phone ? { phone: "phone" } : {}),
       ...(c.english ? { english_name: "english_name" } : {}),
+      ...(c.fixed ? { code: "code" } : {}),
     };
     const offset = integer(q.startRow ?? 0, "شروع ردیف", 0, 10000000);
     const limit = integer(
@@ -109,8 +116,13 @@ export function installBaseData(app, db) {
     res.json(record(db, c, integer(req.params.id, "شناسه")));
   });
   app.post("/api/base-data/:resource", (req, res) => {
-    const c = config(req),
-      v = validate(c, req.body);
+    const c = config(req);
+    assert(
+      !c.fixed,
+      "وضعیت‌های جلسه چهار مورد ثابت‌اند؛ عنوان و توضیحات آن‌ها قابل ویرایش است",
+      405,
+    );
+    const v = validate(c, req.body);
     const id = transaction(db, () => {
       const fields = ["name", "name_key", "notes", "status"],
         args = [v.name, v.key, v.notes, v.status];
@@ -143,6 +155,11 @@ export function installBaseData(app, db) {
       version = integer(req.body.version, "نسخه");
     transaction(db, () => {
       const old = record(db, c, id);
+      if (c.fixed)
+        assert(
+          req.body.code === undefined || req.body.code === old.code,
+          "کد وضعیت جلسه قابل تغییر نیست",
+        );
       assert(
         old.version === version,
         "این اطلاعات تغییر کرده است؛ صفحه را دوباره باز کنید",

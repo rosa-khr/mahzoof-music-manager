@@ -1,3 +1,4 @@
+import { Profile } from "./profile";
 import { Switch } from "../shared/switch";
 import { Select2 } from "../shared/select2";
 import {
@@ -18,6 +19,7 @@ import { Icon } from "../shared/icon";
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    Profile,
     Switch,
     Select2,
     ReactiveFormsModule,
@@ -34,6 +36,25 @@ import { Icon } from "../shared/icon";
         ><app-icon name="chevron" />بازگشت به فهرست</a
       >
     </app-header>
+    <nav
+      class="tabs student-management-tabs"
+      role="tablist"
+      aria-label="بخش‌های مدیریت هنرجو"
+    >
+      @for (item of studentTabs; track item.key) {
+        @if (item.key !== "finance" || api.user()?.finance) {
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="activeTab === item.key"
+            [class.active]="activeTab === item.key"
+            (click)="selectTab(item.key)"
+          >
+            {{ item.label }}
+          </button>
+        }
+      }
+    </nav>
     @if (loading) {
       <p role="status" class="loading-state">در حال دریافت اطلاعات هنرجو…</p>
     }
@@ -41,240 +62,269 @@ import { Icon } from "../shared/icon";
       <p role="alert" class="alert alert-danger">{{ error }}</p>
     }
     @if (!loading && (!editing || student)) {
-      <form class="student-editor card" [formGroup]="form" (ngSubmit)="save()">
-        <fieldset [disabled]="busy" class="student-editor-layout">
-          <div class="student-editor-main">
-            <section class="student-form-section">
-              <header>
-                <h2>اطلاعات اصلی</h2>
-                <small>نام و نام خانوادگی را مطابق پرونده وارد کنید.</small>
-              </header>
-              <div class="form-grid">
-                <app-field
-                  ><input
-                    id="first"
-                    formControlName="firstName"
-                    placeholder=" "
-                    required
-                    maxlength="100"
-                  /><label for="first">نام فارسی *</label></app-field
-                >
-                <app-field
-                  ><input
-                    id="last"
-                    formControlName="lastName"
-                    placeholder=" "
-                    required
-                    maxlength="100"
-                  /><label for="last">نام خانوادگی فارسی *</label></app-field
-                >
-                <app-field
-                  ><input
-                    id="ef"
-                    formControlName="englishFirst"
-                    placeholder=" "
-                    dir="ltr"
-                    maxlength="100"
-                  /><label for="ef">نام انگلیسی</label></app-field
-                >
-                <app-field
-                  ><input
-                    id="el"
-                    formControlName="englishLast"
-                    placeholder=" "
-                    dir="ltr"
-                    maxlength="100"
-                  /><label for="el">نام خانوادگی انگلیسی</label></app-field
-                >
-              </div>
-            </section>
-            <section class="student-form-section">
-              <header><h2>اطلاعات تماس و آموزش</h2></header>
-              <div class="form-grid">
-                <app-field
-                  ><input
-                    id="phone"
-                    formControlName="phone"
-                    type="tel"
-                    placeholder=" "
-                    dir="ltr"
-                    maxlength="30"
-                  /><label for="phone">تماس هنرجو</label></app-field
-                >
-                @if (!editing) {
+      <form
+        class="student-editor card"
+        [hidden]="editing && activeTab !== 'info'"
+        [formGroup]="form"
+        (ngSubmit)="save()"
+      >
+        <div [hidden]="activeTab !== 'info'">
+          <fieldset [disabled]="busy" class="student-editor-layout">
+            <div class="student-editor-main">
+              <section class="student-form-section">
+                <header>
+                  <h2>اطلاعات اصلی</h2>
+                  <small>نام و نام خانوادگی را مطابق پرونده وارد کنید.</small>
+                </header>
+                <div class="form-grid">
                   <app-field
-                    ><select
-                      appSelect2
-                      id="subject"
-                      formControlName="subjectId"
+                    ><input
+                      id="first"
+                      formControlName="firstName"
+                      placeholder=" "
                       required
-                    >
-                      <option value="">انتخاب کنید</option>
-                      @for (s of subjects; track s.id) {
-                        <option [value]="s.id">{{ s.name }}</option>
-                      }</select
-                    ><label for="subject"
-                      >واحد آموزشی موردنظر *</label
-                    ></app-field
+                      maxlength="100"
+                    /><label for="first">نام فارسی *</label></app-field
                   >
-                }
-              </div>
-              @if (editing) {
-                <div class="student-subjects">
-                  <small>مسیرهای آموزشی</small>
-                  @for (e of student?.enrollments; track e.subject_id) {
-                    <span class="chip">{{ e.subject }}</span>
-                  }
+                  <app-field
+                    ><input
+                      id="last"
+                      formControlName="lastName"
+                      placeholder=" "
+                      required
+                      maxlength="100"
+                    /><label for="last">نام خانوادگی فارسی *</label></app-field
+                  >
+                  <app-field
+                    ><input
+                      id="ef"
+                      formControlName="englishFirst"
+                      placeholder=" "
+                      dir="ltr"
+                      maxlength="100"
+                    /><label for="ef">نام انگلیسی</label></app-field
+                  >
+                  <app-field
+                    ><input
+                      id="el"
+                      formControlName="englishLast"
+                      placeholder=" "
+                      dir="ltr"
+                      maxlength="100"
+                    /><label for="el">نام خانوادگی انگلیسی</label></app-field
+                  >
+                  <app-field
+                    ><input
+                      id="student-age"
+                      formControlName="age"
+                      type="number"
+                      min="0"
+                      max="130"
+                      inputmode="numeric"
+                    /><label for="student-age">سن (سال)</label></app-field
+                  >
                 </div>
-              }
-              <p class="form-text">
-                {{
-                  editing
-                    ? "ترم‌ها و سوابق آموزشی از پرونده هنرجو مدیریت می‌شوند."
-                    : "انتخاب واحد آموزشی، ترم یا صورتحساب ایجاد نمی‌کند."
-                }}
-              </p>
-            </section>
-            <details
-              class="student-form-accordion"
-              [open]="!!student?.guardians?.length"
-            >
-              <summary>
-                والد یا سرپرست
-                <small
-                  >اختیاری؛ در صورت نداشتن شماره شخصی هنرجو تکمیل شود.</small
+              </section>
+              <section class="student-form-section">
+                <header><h2>اطلاعات تماس</h2></header>
+                <div class="form-grid">
+                  <app-field
+                    ><input
+                      id="phone"
+                      formControlName="phone"
+                      type="tel"
+                      placeholder=" "
+                      dir="ltr"
+                      maxlength="30"
+                    /><label for="phone">تماس هنرجو</label></app-field
+                  >
+                </div>
+              </section>
+              <section class="student-form-section">
+                <app-field>
+                  <textarea
+                    id="student-address"
+                    formControlName="address"
+                    maxlength="2000"
+                  ></textarea
+                  ><label for="student-address">آدرس</label></app-field
                 >
-              </summary>
-              <div class="form-grid">
-                <app-field
-                  ><input
-                    id="gn"
-                    formControlName="guardianName"
-                    placeholder=" "
-                    maxlength="150"
-                  /><label for="gn">نام سرپرست</label></app-field
-                >
-                <app-field
-                  ><input
-                    id="gp"
-                    formControlName="guardianPhone"
-                    type="tel"
-                    placeholder=" "
-                    dir="ltr"
-                    maxlength="30"
-                  /><label for="gp">تماس سرپرست</label></app-field
-                >
-                <app-field
-                  ><input
-                    id="gr"
-                    formControlName="guardianRelationship"
-                    placeholder=" "
-                    maxlength="80"
-                  /><label for="gr">نسبت سرپرست</label></app-field
-                >
-              </div>
-            </details>
-            @if (api.user()?.admin) {
+              </section>
               <details
                 class="student-form-accordion"
-                [open]="!!form.controls.missingContactReason.value"
+                [open]="!!student?.guardians?.length"
               >
-                <summary>ثبت بدون اطلاعات تماس</summary>
-                <div class="student-reason">
-                  <app-field>
-                    <textarea
-                      id="missing"
-                      formControlName="missingContactReason"
+                <summary>
+                  والد یا سرپرست
+                  <small
+                    >اختیاری؛ در صورت نداشتن شماره شخصی هنرجو تکمیل شود.</small
+                  >
+                </summary>
+                <div class="form-grid">
+                  <app-field
+                    ><input
+                      id="gn"
+                      formControlName="guardianName"
                       placeholder=" "
-                      maxlength="1000"
-                    ></textarea
-                    ><label for="missing"
-                      >دلیل ثبت بدون تماس (فقط مدیر)</label
-                    ></app-field
+                      maxlength="150"
+                    /><label for="gn">نام سرپرست</label></app-field
+                  >
+                  <app-field
+                    ><input
+                      id="gp"
+                      formControlName="guardianPhone"
+                      type="tel"
+                      placeholder=" "
+                      dir="ltr"
+                      maxlength="30"
+                    /><label for="gp">تماس سرپرست</label></app-field
+                  >
+                  <app-field
+                    ><input
+                      id="gr"
+                      formControlName="guardianRelationship"
+                      placeholder=" "
+                      maxlength="80"
+                    /><label for="gr">نسبت سرپرست</label></app-field
                   >
                 </div>
               </details>
-            }
-          </div>
-          <div class="student-editor-side">
-            <section
-              class="student-photo-card"
-              [class.dragging]="dragging"
-              (dragover)="onDrag($event)"
-              (dragleave)="dragging = false"
-              (drop)="onDrop($event)"
-            >
-              <div class="student-photo-preview">
-                @if (preview) {
-                  <img [src]="preview" alt="عکس هنرجو" />
-                } @else {
-                  <app-icon name="users" /><span
-                    >عکس هنرجو هنوز انتخاب نشده است.</span
-                  >
-                }
-              </div>
-              <h2>عکس هنرجو</h2>
-              <p>
-                JPG، PNG یا WebP تا ۵ مگابایت؛ عکس را انتخاب کنید یا اینجا رها
-                کنید.
-              </p>
-              <input
-                id="student-photo"
-                class="visually-hidden"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                (change)="onFile($event)"
-              />
-              <label class="btn btn-light w-100" for="student-photo"
-                ><app-icon name="upload" />انتخاب عکس هنرجو</label
-              >
-              @if (preview || photoError) {
-                <button
-                  type="button"
-                  class="btn btn-sm photo-remove"
-                  (click)="removeImage()"
+              @if (api.user()?.admin) {
+                <details
+                  class="student-form-accordion"
+                  [open]="!!form.controls.missingContactReason.value"
                 >
-                  حذف عکس
-                </button>
+                  <summary>ثبت بدون اطلاعات تماس</summary>
+                  <div class="student-reason">
+                    <app-field>
+                      <textarea
+                        id="missing"
+                        formControlName="missingContactReason"
+                        placeholder=" "
+                        maxlength="1000"
+                      ></textarea
+                      ><label for="missing"
+                        >دلیل ثبت بدون تماس (فقط مدیر)</label
+                      ></app-field
+                    >
+                  </div>
+                </details>
               }
-              @if (photoError) {
-                <p class="text-danger" role="alert">{{ photoError }}</p>
-              }
-              <small>عکس با ذخیره اطلاعات پرونده ثبت می‌شود.</small>
-            </section>
-            <section class="student-form-section student-form-settings">
-              <header><h2>وضعیت پرونده</h2></header>
-              @if (form.controls.status.value !== "archived") {
-                <app-switch
-                  formControlName="status"
-                  onValue="active"
-                  offValue="inactive"
-                  label="فعال بودن هنرجو"
-                />
-              }
-              <app-switch
-                label="بایگانی پرونده"
-                onText="بایگانی‌شده"
-                offText="بایگانی نشده"
-                [checked]="form.controls.status.value === 'archived'"
-                (checkedChange)="setArchived($event)"
-              />
-              <app-field
-                ><select appSelect2 id="history" formControlName="history">
-                  <option value="unknown">نامشخص</option>
-                  <option value="new">هنرجوی جدید آموزشگاه</option>
-                  <option value="old">سابقه قبلی دارد</option></select
-                ><label for="history">سابقه ثبت‌نام</label></app-field
+            </div>
+            <div class="student-editor-side">
+              <section
+                class="student-photo-card"
+                [class.dragging]="dragging"
+                (dragover)="onDrag($event)"
+                (dragleave)="dragging = false"
+                (drop)="onDrop($event)"
               >
-              <div class="student-code-info">
-                <small>کد هنرجو</small
-                ><b dir="ltr">{{
-                  student?.code || "پس از ثبت ساخته می‌شود"
-                }}</b>
-              </div>
-            </section>
-          </div>
-        </fieldset>
+                <div class="student-photo-preview">
+                  @if (preview) {
+                    <img [src]="preview" alt="عکس هنرجو" />
+                  } @else {
+                    <app-icon name="users" /><span
+                      >عکس هنرجو هنوز انتخاب نشده است.</span
+                    >
+                  }
+                </div>
+                <h2>عکس هنرجو</h2>
+                <p>
+                  JPG، PNG یا WebP تا ۵ مگابایت؛ عکس را انتخاب کنید یا اینجا رها
+                  کنید.
+                </p>
+                <input
+                  id="student-photo"
+                  class="visually-hidden"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  (change)="onFile($event)"
+                />
+                <label class="btn btn-light w-100" for="student-photo"
+                  ><app-icon name="upload" />انتخاب عکس هنرجو</label
+                >
+                @if (preview || photoError) {
+                  <button
+                    type="button"
+                    class="btn btn-sm photo-remove"
+                    (click)="removeImage()"
+                  >
+                    حذف عکس
+                  </button>
+                }
+                @if (photoError) {
+                  <p class="text-danger" role="alert">{{ photoError }}</p>
+                }
+                <small>عکس با ذخیره اطلاعات پرونده ثبت می‌شود.</small>
+              </section>
+              <section class="student-form-section student-form-settings">
+                <header><h2>وضعیت پرونده</h2></header>
+                @if (form.controls.status.value !== "archived") {
+                  <app-switch
+                    formControlName="status"
+                    onValue="active"
+                    offValue="inactive"
+                    label="فعال بودن هنرجو"
+                  />
+                }
+                <app-switch
+                  label="بایگانی پرونده"
+                  onText="بایگانی‌شده"
+                  offText="بایگانی نشده"
+                  [checked]="form.controls.status.value === 'archived'"
+                  (checkedChange)="setArchived($event)"
+                />
+                <app-field
+                  ><select appSelect2 id="history" formControlName="history">
+                    <option value="unknown">نامشخص</option>
+                    <option value="new">هنرجوی جدید آموزشگاه</option>
+                    <option value="old">سابقه قبلی دارد</option></select
+                  ><label for="history">سابقه ثبت‌نام</label></app-field
+                >
+                <div class="student-code-info">
+                  <small>کد هنرجو</small
+                  ><b dir="ltr">{{
+                    student?.code || "پس از ثبت ساخته می‌شود"
+                  }}</b>
+                </div>
+              </section>
+            </div>
+          </fieldset>
+        </div>
+        @if (!editing) {
+          <section
+            [hidden]="activeTab !== 'terms'"
+            class="student-form-section"
+          >
+            <h2>اطلاعات ساز و جلسه</h2>
+            <div class="form-grid">
+              @if (!editing) {
+                <app-field
+                  ><select
+                    appSelect2
+                    id="subject"
+                    formControlName="subjectId"
+                    required
+                  >
+                    <option value="">انتخاب کنید</option>
+                    @for (s of subjects; track s.id) {
+                      <option [value]="s.id">{{ s.name }}</option>
+                    }</select
+                  ><label for="subject">واحد آموزشی موردنظر *</label></app-field
+                >
+              }
+            </div>
+            <p class="form-text">
+              ترم و جلسات پس از ثبت اطلاعات فردی در همین بخش مدیریت می‌شوند.
+            </p>
+          </section>
+          @if (activeTab === "attendance" || activeTab === "finance") {
+            <p class="empty">
+              ابتدا اطلاعات فردی و واحد آموزشی را ثبت کنید؛ سپس جلسات، حضور و
+              غیاب و شهریه ترم در همین تب‌ها در دسترس‌اند.
+            </p>
+          }
+        }
         @if (form.invalid && form.touched) {
           <p class="text-danger">فیلدهای الزامی را تکمیل کنید.</p>
         }
@@ -295,6 +345,9 @@ import { Icon } from "../shared/icon";
           </button>
         </footer>
       </form>
+      @if (editing && activeTab !== "info") {
+        <app-student-profile [embedded]="true" [initialTab]="activeTab" />
+      }
     }`,
 })
 export class StudentForm implements OnInit, OnDestroy {
@@ -304,6 +357,16 @@ export class StudentForm implements OnInit, OnDestroy {
   route = inject(ActivatedRoute);
   router = inject(Router);
   editing = !!this.route.snapshot.paramMap.get("id");
+  studentTabs = [
+    { key: "info", label: "اطلاعات فردی" },
+    { key: "terms", label: "اطلاعات ساز و جلسه" },
+    { key: "attendance", label: "حضور و غیاب" },
+    { key: "finance", label: "مالی" },
+  ];
+  activeTab = "info";
+  selectTab(tab: string) {
+    this.activeTab = tab;
+  }
   student: Student | null = null;
   subjects: Subject[] = [];
   loading = false;
@@ -321,6 +384,11 @@ export class StudentForm implements OnInit, OnDestroy {
     englishFirst: "",
     englishLast: "",
     phone: "",
+    age: [
+      "",
+      [Validators.min(0), Validators.max(130), Validators.pattern(/^\d*$/)],
+    ],
+    address: ["", Validators.maxLength(2000)],
     subjectId: ["", Validators.required],
     guardianName: "",
     guardianPhone: "",
@@ -335,7 +403,10 @@ export class StudentForm implements OnInit, OnDestroy {
   }
   async ngOnInit() {
     this.loading = true;
-    if (this.editing) this.form.controls.subjectId.clearValidators();
+    if (this.editing) {
+      this.form.controls.subjectId.clearValidators();
+      this.form.controls.subjectId.updateValueAndValidity();
+    }
     try {
       if (this.editing) {
         this.student = await this.api.get<Student>(
@@ -349,6 +420,8 @@ export class StudentForm implements OnInit, OnDestroy {
           englishFirst: s.english_first,
           englishLast: s.english_last,
           phone: s.phone,
+          age: s.age == null ? "" : String(s.age),
+          address: s.address || "",
           guardianName: g?.name || "",
           guardianPhone: g?.phone || "",
           guardianRelationship: g?.relationship || "سرپرست",
@@ -415,7 +488,12 @@ export class StudentForm implements OnInit, OnDestroy {
   }
   async save() {
     this.form.markAllAsTouched();
-    if (this.form.invalid || this.busy || this.photoError) return;
+    if (this.form.invalid || this.busy || this.photoError) {
+      if (!this.editing && this.form.controls.subjectId.invalid)
+        this.activeTab = "terms";
+      else this.activeTab = "info";
+      return;
+    }
     this.busy = true;
     this.error = "";
     try {

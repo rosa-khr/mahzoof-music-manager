@@ -1,6 +1,7 @@
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import {
   Component,
+  Input,
   inject,
   OnInit,
   DestroyRef,
@@ -28,7 +29,9 @@ import { PageHeader, Badge, Money, PersianDate } from "../shared/ui";
 import { TermForm } from "./term-form";
 import { PaymentForm } from "./payment-form";
 import { SessionForm, AttendanceForm } from "./session-form";
+import { SessionStatuses } from "../core/session-statuses";
 @Component({
+  selector: "app-student-profile",
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [
@@ -43,9 +46,9 @@ import { SessionForm, AttendanceForm } from "./session-form";
     SessionForm,
     AttendanceForm,
   ],
-  template: `<a routerLink="/students" class="back-link"
-      >بازگشت به پرونده هنرجویان</a
-    >
+  template: `@if (!embedded) {
+      <a routerLink="/students" class="back-link">بازگشت به پرونده هنرجویان</a>
+    }
     @if (error) {
       <p class="alert alert-danger" role="alert">
         {{ error }}
@@ -56,50 +59,52 @@ import { SessionForm, AttendanceForm } from "./session-form";
       <p role="status">در حال دریافت پرونده…</p>
     }
     @if (student; as s) {
-      <app-header
-        [title]="s.first_name + ' ' + s.last_name"
-        [subtitle]="
-          s.code +
-          ' • ' +
-          (s.english_first || '') +
-          ' ' +
-          (s.english_last || '')
-        "
-      >
-        @if (s.photo_url) {
-          <img class="profile-photo" [src]="s.photo_url" alt="عکس هنرجو" />
-        }
-        <app-badge [value]="s.status"
-      /></app-header>
-      <section class="card profile-summary">
-        <div>
-          <span class="eyebrow">تماس هنرجو</span>
-          <p dir="ltr">{{ s.phone || "ثبت نشده" }}</p>
-          @for (g of s.guardians; track g.phone) {
-            <p>
-              تماس {{ g.relationship }}: {{ g.name }}
-              <bdi>{{ g.phone || "ثبت نشده" }}</bdi>
-            </p>
+      @if (!embedded) {
+        <app-header
+          [title]="s.first_name + ' ' + s.last_name"
+          [subtitle]="
+            s.code +
+            ' • ' +
+            (s.english_first || '') +
+            ' ' +
+            (s.english_last || '')
+          "
+        >
+          @if (s.photo_url) {
+            <img class="profile-photo" [src]="s.photo_url" alt="عکس هنرجو" />
           }
-          <p>
-            مسیرهای آموزشی:
-            @for (e of s.enrollments; track e.subject_id) {
-              <span class="chip">{{ e.subject }}</span>
+          <app-badge [value]="s.status"
+        /></app-header>
+        <section class="card profile-summary">
+          <div>
+            <span class="eyebrow">تماس هنرجو</span>
+            <p dir="ltr">{{ s.phone || "ثبت نشده" }}</p>
+            @for (g of s.guardians; track g.phone) {
+              <p>
+                تماس {{ g.relationship }}: {{ g.name }}
+                <bdi>{{ g.phone || "ثبت نشده" }}</bdi>
+              </p>
             }
-          </p>
-          @if (contactIncomplete) {
-            <p class="text-danger">اطلاعات تماس ناقص است.</p>
-          }
-        </div>
-        <div>
-          @for (b of s.balances; track b.currency) {
             <p>
-              بدهی: <b>{{ b.debt_minor | money: b.currency }}</b> • اعتبار:
-              {{ b.credit_minor | money: b.currency }}
+              مسیرهای آموزشی:
+              @for (e of s.enrollments; track e.subject_id) {
+                <span class="chip">{{ e.subject }}</span>
+              }
             </p>
-          }
-        </div>
-      </section>
+            @if (contactIncomplete) {
+              <p class="text-danger">اطلاعات تماس ناقص است.</p>
+            }
+          </div>
+          <div>
+            @for (b of s.balances; track b.currency) {
+              <p>
+                بدهی: <b>{{ b.debt_minor | money: b.currency }}</b> • اعتبار:
+                {{ b.credit_minor | money: b.currency }}
+              </p>
+            }
+          </div>
+        </section>
+      }
       @if (s.possible_duplicates.length) {
         <p class="alert alert-warning">
           پرونده مشابه احتمالی پیدا شد؛ قبل از ادامه بررسی کنید.
@@ -112,7 +117,7 @@ import { SessionForm, AttendanceForm } from "./session-form";
         </p>
       }
       <div class="actions profile-actions">
-        @if (api.user()?.education) {
+        @if (api.user()?.education && !embedded) {
           <a class="btn btn-light" [routerLink]="['/students', s.id, 'edit']"
             >ویرایش هنرجو</a
           >
@@ -162,37 +167,46 @@ import { SessionForm, AttendanceForm } from "./session-form";
       @if (action === "attendance" && selectedAttendance) {
         <app-attendance-form
           [attendance]="selectedAttendance"
+          [initialStatus]="requestedAttendanceStatus"
           (saved)="saved()"
           (cancel)="close()"
         />
       }
-      <nav class="tabs" aria-label="بخش‌های پرونده">
-        <button [class.active]="tab === 'info'" (click)="setTab('info')">
-          مشخصات</button
-        ><button [class.active]="tab === 'terms'" (click)="setTab('terms')">
-          ترم‌ها
-        </button>
-        @if (api.user()?.education) {
-          <button
-            [class.active]="tab === 'attendance'"
-            (click)="setTab('attendance')"
-          >
-            حضور و غیاب
+      @if (!embedded) {
+        <nav class="tabs" aria-label="بخش‌های پرونده">
+          <button [class.active]="tab === 'info'" (click)="setTab('info')">
+            اطلاعات فردی</button
+          ><button [class.active]="tab === 'terms'" (click)="setTab('terms')">
+            اطلاعات ساز و جلسه
           </button>
-        }
-        @if (api.user()?.finance) {
-          <button
-            [class.active]="tab === 'finance'"
-            (click)="setTab('finance')"
-          >
-            مالی
-          </button>
-        }
-      </nav>
+          @if (api.user()?.education) {
+            <button
+              [class.active]="tab === 'attendance'"
+              (click)="setTab('attendance')"
+            >
+              حضور و غیاب
+            </button>
+          }
+          @if (api.user()?.finance) {
+            <button
+              [class.active]="tab === 'finance'"
+              (click)="setTab('finance')"
+            >
+              مالی
+            </button>
+          }
+        </nav>
+      }
       @if (tab === "info") {
         <section class="card">
           <h2>مشخصات اولیه</h2>
           <dl class="details">
+            @if (api.user()?.education) {
+              <dt>سن</dt>
+              <dd>{{ s.age == null ? "ثبت نشده" : s.age + " سال" }}</dd>
+              <dt>آدرس</dt>
+              <dd>{{ s.address || "ثبت نشده" }}</dd>
+            }
             @if (api.user()?.education) {
               <dt>منطقه زمانی</dt>
               <dd>
@@ -343,6 +357,17 @@ import { SessionForm, AttendanceForm } from "./session-form";
     } `,
 })
 export class Profile implements OnInit {
+  @Input() embedded = false;
+  @Input() initialTab = "terms";
+  ngOnChanges() {
+    if (this.embedded) {
+      this.tab = this.initialTab;
+      this.close();
+    }
+  }
+  statusCatalog = inject(SessionStatuses);
+  pendingAttendance = new Set<number>();
+  requestedAttendanceStatus: string | null = null;
   cdr = inject(ChangeDetectorRef);
   api = inject(Api);
   destroy = inject(DestroyRef);
@@ -393,6 +418,102 @@ export class Profile implements OnInit {
   }
   money = new Money();
   date = new PersianDate();
+  attendanceActions(termId: number): ColDef<Attendance> {
+    const column = actionColumn<Attendance>(
+      (a) => [
+        { label: "ثبت / اصلاح وضعیت", icon: "check", run: () => this.edit(a) },
+        ...(a.status === "reserved"
+          ? [
+              {
+                label: "ویرایش نوبت",
+                icon: "edit" as const,
+                run: () =>
+                  this.editReservation(
+                    a,
+                    this.attendanceTerms.get(a.id) ||
+                      this.student!.terms.find((t) => t.id === termId)!,
+                  ),
+              },
+            ]
+          : []),
+      ],
+      210,
+    );
+    const buttons = column.cellRenderer as (
+      params: ICellRendererParams<Attendance>,
+    ) => HTMLElement;
+    return {
+      ...column,
+      headerName: "حضور و غیاب / عملیات",
+      cellRenderer: (params: ICellRendererParams<Attendance>) => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "attendance-row-controls";
+        if (!params.data) return wrapper;
+        const a = params.data,
+          radios = document.createElement("div");
+        radios.className = "attendance-radios";
+        radios.setAttribute("role", "group");
+        radios.setAttribute("aria-label", "وضعیت جلسه " + a.session_id);
+        const reset = () =>
+          radios
+            .querySelectorAll<HTMLInputElement>("input")
+            .forEach((input) => {
+              input.checked = input.value === a.status;
+              input.disabled = this.pendingAttendance.has(a.id);
+            });
+        for (const option of this.statusCatalog.options) {
+          const label = document.createElement("label"),
+            input = document.createElement("input");
+          input.type = "radio";
+          input.name = `attendance-${termId}-${a.id}`;
+          input.value = option.code;
+          input.checked = a.status === option.code;
+          input.setAttribute(
+            "aria-label",
+            option.name + " جلسه " + a.session_id,
+          );
+          input.addEventListener("change", () => {
+            if (this.pendingAttendance.has(a.id)) {
+              reset();
+              return;
+            }
+            if (option.code === "absent" || option.code === "cancelled") {
+              reset();
+              this.edit(a, option.code);
+              this.cdr.markForCheck();
+            } else void this.quickAttendance(a, option.code, reset);
+          });
+          const caption = document.createElement("span");
+          caption.textContent = option.name;
+          label.title = option.name;
+          label.append(input, caption);
+          radios.append(label);
+        }
+        wrapper.append(radios, buttons(params));
+        return wrapper;
+      },
+    };
+  }
+  async quickAttendance(a: Attendance, status: string, reset: () => void) {
+    this.pendingAttendance.add(a.id);
+    reset();
+    this.error = "";
+    this.cdr.markForCheck();
+    try {
+      await this.api.patch("/attendance/" + a.id, {
+        version: a.version,
+        status,
+      });
+      this.message = "وضعیت جلسه با موفقیت ثبت شد.";
+      await this.load();
+    } catch (e) {
+      this.error = errorMessage(e);
+    } finally {
+      this.pendingAttendance.delete(a.id);
+      reset();
+      this.cdr.markForCheck();
+    }
+  }
   sessionColumns(termId: number): ColDef<Attendance>[] {
     if (!this.sessionColumnCache.has(termId))
       this.sessionColumnCache.set(termId, [
@@ -449,6 +570,9 @@ export class Profile implements OnInit {
           minWidth: 175,
           width: 175,
           maxWidth: 190,
+          filterValueGetter: (p) =>
+            this.statusCatalog.options.find((o) => o.code === p.data?.status)
+              ?.name || "",
           cellRenderer: (p: ICellRendererParams<Attendance>) =>
             p.data
               ? statusCell(
@@ -456,6 +580,9 @@ export class Profile implements OnInit {
                   p.data.status === "reserved" && this.isPast(p.data.starts_at)
                     ? "نیازمند تعیین وضعیت"
                     : "",
+                  this.statusCatalog.options.find(
+                    (o) => o.code === p.data?.status,
+                  )?.name,
                 )
               : "",
         },
@@ -480,26 +607,7 @@ export class Profile implements OnInit {
                 )
               : "",
         },
-        actionColumn<Attendance>((a) => [
-          {
-            label: "ثبت / اصلاح وضعیت",
-            icon: "check",
-            run: () => this.edit(a),
-          },
-          ...(a.status === "reserved"
-            ? [
-                {
-                  label: "ویرایش نوبت",
-                  icon: "edit" as const,
-                  run: () =>
-                    this.editReservation(
-                      a,
-                      this.student!.terms.find((term) => term.id === termId)!,
-                    ),
-                },
-              ]
-            : []),
-        ]),
+        this.attendanceActions(termId),
       ]);
     return this.sessionColumnCache.get(termId)!;
   }
@@ -596,7 +704,7 @@ export class Profile implements OnInit {
   ngOnInit() {
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroy)).subscribe(() => {
       const q = this.route.snapshot.queryParamMap;
-      this.tab = q.get("tab") || "terms";
+      this.tab = this.embedded ? this.initialTab : q.get("tab") || "terms";
       this.selectedTerm = Number(q.get("term")) || 0;
       void this.load().then(() => {
         const requestedAction = q.get("action");
@@ -632,6 +740,9 @@ export class Profile implements OnInit {
       this.student = await this.api.get<Student>(
         "/students/" + this.route.snapshot.paramMap.get("id"),
       );
+      if (this.api.user()?.education) await this.statusCatalog.load();
+      this.sessionColumnCache.clear();
+      this.attendanceColumns = [];
       this.financeTerms = this.student.terms.filter((t) => !!t.invoice);
       this.attendanceTerms.clear();
       this.attendanceRows = this.student.terms.flatMap((t) =>
@@ -652,23 +763,7 @@ export class Profile implements OnInit {
             },
           },
           ...this.sessionColumns(0).slice(0, -1),
-          actionColumn<Attendance>((a) => [
-            {
-              label: "ثبت / اصلاح وضعیت",
-              icon: "check",
-              run: () => this.edit(a),
-            },
-            ...(a.status === "reserved"
-              ? [
-                  {
-                    label: "ویرایش نوبت",
-                    icon: "edit" as const,
-                    run: () =>
-                      this.editReservation(a, this.attendanceTerms.get(a.id)!),
-                  },
-                ]
-              : []),
-          ]),
+          this.attendanceActions(0),
         ];
     } catch (e) {
       this.error = errorMessage(e);
@@ -706,13 +801,15 @@ export class Profile implements OnInit {
     this.open("term", t);
     this.oldTerm = t;
   }
-  edit(a: Attendance) {
+  edit(a: Attendance, requestedStatus: string | null = null) {
+    this.requestedAttendanceStatus = requestedStatus;
     this.action = "attendance";
     this.selectedAttendance = a;
     this.message = "";
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
   close() {
+    this.requestedAttendanceStatus = null;
     this.action = "";
     this.selectedAttendance = null;
     this.oldTerm = null;

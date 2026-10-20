@@ -84,6 +84,8 @@ export interface Payment {
   status: string;
 }
 export interface Student extends StudentRow {
+  address?: string;
+  age?: number | null;
   version: number;
   possible_duplicates: StudentRow[];
   english_first: string;

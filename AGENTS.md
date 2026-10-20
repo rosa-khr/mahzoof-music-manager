@@ -11,3 +11,6 @@
 - The user removed the standalone Education menu (classes/groups, terms/renewal, sessions/attendance). Keep educational actions inside student management and student profiles; do not reintroduce those sidebar destinations. Legacy /classes, /terms and /sessions redirect to /students.
 
 - Latest form standard: fixed labels above controls (no floating labels), compact sm inputs and Select2. Boolean/two-state fields use shared Switch; preserve multi-state statuses and explicit absence quota decisions.
+
+- Student create/edit uses tabs for personal info (including age/address/photo), instrument/term/session operations, attendance and term tuition. Preserve personal drafts when changing tabs; education/finance role guards remain in force.
+- Session status basic data has four permanent codes (present/absent/reserved/cancelled). Edit Persian names/notes through the existing AG Grid/editor; do not add/delete/disable codes or change quota rules. Per-session radios use these labels; absence still requires an explicit quota decision and reason, cancellation requires reason and actor.

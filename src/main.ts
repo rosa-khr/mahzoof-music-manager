@@ -63,13 +63,25 @@ bootstrapApplication(App, {
           loadComponent: () =>
             import("./app/features/base-data-list").then((m) => m.BaseDataList),
         },
-        {
-          path: "base-data/" + resource.key + "/new",
-          canActivate: [menuGuard],
-          data: { access: "education", resource },
-          loadComponent: () =>
-            import("./app/features/base-data-form").then((m) => m.BaseDataForm),
-        },
+        ...(resource.key === "session-statuses"
+          ? [
+              {
+                path: "base-data/session-statuses/new",
+                pathMatch: "full" as const,
+                redirectTo: "base-data/session-statuses",
+              },
+            ]
+          : [
+              {
+                path: "base-data/" + resource.key + "/new",
+                canActivate: [menuGuard],
+                data: { access: "education", resource },
+                loadComponent: () =>
+                  import("./app/features/base-data-form").then(
+                    (m) => m.BaseDataForm,
+                  ),
+              },
+            ]),
         {
           path: "base-data/" + resource.key + "/:id/edit",
           canActivate: [menuGuard],

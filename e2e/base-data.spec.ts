@@ -12,7 +12,9 @@ async function login(page: Page, role = "admin") {
     page.getByRole("heading", { name: "کارهای امروز", exact: true }),
   ).toBeVisible();
 }
-for (const resource of BASE_RESOURCES) {
+for (const resource of BASE_RESOURCES.filter(
+  (r) => r.key !== "session-statuses",
+)) {
   test(`${resource.key}: base menu, AG Grid, separate create/edit, persistence and filter return`, async ({
     page,
   }, info) => {
@@ -202,4 +204,55 @@ test("accountant cannot open base lists, create or edit routes", async ({
       await page.goto("/base-data/" + r.key + suffix);
       await expect(page).toHaveURL("http://localhost:4310/");
     }
+});
+
+test("session statuses: four real rows, fixed codes, separate editing and reload", async ({
+  page,
+}, info) => {
+  await login(page);
+  await page.goto("/base-data/session-statuses");
+  const grid = page.locator("app-data-grid");
+  await expect(grid.locator(".ag-row[row-id]")).toHaveCount(4);
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "ثبت وضعیت جلسه", exact: true }),
+  ).toHaveCount(0);
+  if (info.project.name === "desktop") {
+    for (const name of ["حاضر", "غایب", "رزرو", "کنسل"])
+      await expect(grid).toContainText(name);
+    await expect(grid).not.toContainText("undefined");
+  }
+  await page.screenshot({
+    path: `test-results/${info.project.name}-session-statuses.png`,
+    fullPage: true,
+  });
+  await grid
+    .getByRole("link", { name: "ویرایش وضعیت جلسه", exact: true })
+    .first()
+    .click();
+  await expect(
+    page.getByLabel("عنوان وضعیت *", { exact: true }),
+  ).not.toHaveValue("");
+  await expect(page.getByRole("switch")).toHaveCount(0);
+  await page
+    .getByLabel("توضیحات", { exact: true })
+    .fill("بررسی ذخیره وضعیت " + info.project.name);
+  await page
+    .getByRole("button", { name: "ذخیره تغییرات", exact: true })
+    .click();
+  await expect(grid.locator(".ag-row[row-id]")).toHaveCount(4);
+  await page.reload();
+  await expect(grid.locator(".ag-row[row-id]")).toHaveCount(4);
+  await grid
+    .getByRole("link", { name: "ویرایش وضعیت جلسه", exact: true })
+    .first()
+    .click();
+  await expect(page.getByLabel("توضیحات", { exact: true })).toHaveValue(
+    "بررسی ذخیره وضعیت " + info.project.name,
+  );
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > innerWidth + 1,
+    ),
+  ).toBe(false);
 });

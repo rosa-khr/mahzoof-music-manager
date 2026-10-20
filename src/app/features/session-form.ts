@@ -1,4 +1,8 @@
 import { Switch } from "../shared/switch";
+import {
+  SessionStatuses,
+  DEFAULT_SESSION_STATUSES,
+} from "../core/session-statuses";
 import { Select2 } from "../shared/select2";
 import {
   Component,
@@ -207,10 +211,9 @@ export class SessionForm {
       <div class="form-grid">
         <app-field
           ><select appSelect2 id="astatus" formControlName="status">
-            <option value="reserved">رزرو</option>
-            <option value="present">حاضر</option>
-            <option value="absent">غایب</option>
-            <option value="cancelled">کنسل‌شده</option></select
+            @for (option of statusOptions; track option.code) {
+              <option [value]="option.code">{{ option.name }}</option>
+            }</select
           ><label for="astatus">وضعیت جلسه</label></app-field
         >
         @if (form.controls.status.value === "absent") {
@@ -281,6 +284,9 @@ export class SessionForm {
   </section>`,
 })
 export class AttendanceForm {
+  catalog = inject(SessionStatuses);
+  statusOptions = DEFAULT_SESSION_STATUSES;
+  @Input() initialStatus: string | null = null;
   cdr = inject(ChangeDetectorRef);
   @Input({ required: true }) attendance!: Attendance;
   @Output() saved = new EventEmitter<void>();
@@ -295,9 +301,9 @@ export class AttendanceForm {
   });
   busy = false;
   error = "";
-  ngOnInit() {
+  async ngOnInit() {
     this.form.patchValue({
-      status: this.attendance.status,
+      status: this.initialStatus || this.attendance.status,
       reason: this.attendance.reason,
       cancelledBy: this.attendance.cancelled_by,
       counts:
@@ -307,6 +313,12 @@ export class AttendanceForm {
             : "no"
           : "",
     });
+    try {
+      this.statusOptions = await this.catalog.load();
+    } catch (e) {
+      this.error = errorMessage(e);
+    }
+    this.cdr.markForCheck();
   }
   async save() {
     if (this.busy) return;

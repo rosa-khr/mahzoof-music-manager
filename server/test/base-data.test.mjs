@@ -243,3 +243,80 @@ test("instrument English name persists, supports grid filters, legacy edits and 
     undefined,
   );
 });
+
+test("session statuses: four persisted system codes, editable labels, grid filters and protected semantics", async () => {
+  let r = await call("/session-statuses");
+  assert.equal(r.status, 200);
+  assert.equal(r.body.total, 4);
+  assert.deepEqual(r.body.items.map((x) => x.code).sort(), [
+    "absent",
+    "cancelled",
+    "present",
+    "reserved",
+  ]);
+  const present = r.body.items.find((x) => x.code === "present");
+  assert.equal(present.name, "حاضر");
+  assert.equal(
+    (
+      await call("/session-statuses", {
+        method: "POST",
+        body: { name: "جدید" },
+      })
+    ).status,
+    405,
+  );
+  for (const change of [{ code: "reserved" }, { status: "inactive" }]) {
+    assert.equal(
+      (
+        await call(`/session-statuses/${present.id}`, {
+          method: "PATCH",
+          body: { ...present, ...change },
+        })
+      ).status,
+      422,
+    );
+  }
+  r = await call(`/session-statuses/${present.id}`, {
+    method: "PATCH",
+    user: secretary,
+    body: { ...present, name: "حضور تأییدشده", notes: "توضیح وضعیت" },
+  });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.code, "present");
+  assert.equal(r.body.version, 2);
+  assert.equal(
+    (
+      await call(`/session-statuses/${present.id}`, {
+        method: "PATCH",
+        body: present,
+      })
+    ).status,
+    409,
+  );
+  const filtered = await call(
+    "/session-statuses?" +
+      new URLSearchParams({
+        filterModel: JSON.stringify({
+          code: { filterType: "text", type: "equals", filter: "present" },
+        }),
+      }),
+  );
+  assert.equal(filtered.body.total, 1);
+  assert.equal(filtered.body.items[0].name, "حضور تأییدشده");
+  for (const [path, method] of [
+    ["/session-statuses", "GET"],
+    ["/session-statuses/1", "GET"],
+    ["/session-statuses/1", "PATCH"],
+  ])
+    assert.equal(
+      (
+        await call(path, {
+          method,
+          user: accountant,
+          body: method === "PATCH" ? present : undefined,
+        })
+      ).status,
+      403,
+    );
+  assert.equal(one(db, "SELECT COUNT(*) n FROM session_statuses").n, 4);
+});
