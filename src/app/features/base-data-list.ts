@@ -68,6 +68,16 @@ export class BaseDataList {
   pendingPage: number | null = null;
   columns: ColDef<BaseRecord>[] = [
     { field: "name", headerName: this.resource.nameLabel, minWidth: 230 },
+    ...(this.resource.key === "instruments"
+      ? [
+          {
+            field: "english_name" as const,
+            headerName: "نام انگلیسی ساز",
+            minWidth: 180,
+            cellClass: "grid-ltr",
+          },
+        ]
+      : []),
     ...(this.resource.phone
       ? [
           {

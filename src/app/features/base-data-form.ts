@@ -51,6 +51,18 @@ import { Icon } from "../shared/icon";
                     >{{ resource.nameLabel }} *</label
                   ></app-field
                 >
+                @if (resource.key === "instruments") {
+                  <app-field>
+                    <input
+                      id="instrument-english-name"
+                      formControlName="englishName"
+                      dir="ltr"
+                      maxlength="150"
+                      autocomplete="off"
+                    />
+                    <label for="instrument-english-name">نام انگلیسی ساز</label>
+                  </app-field>
+                }
                 @if (resource.phone) {
                   <app-field
                     ><input
@@ -135,6 +147,7 @@ export class BaseDataForm implements OnInit {
   form = this.fb.nonNullable.group({
     name: ["", [Validators.required, Validators.maxLength(150)]],
     phone: "",
+    englishName: ["", Validators.maxLength(150)],
     notes: ["", Validators.maxLength(2000)],
     status: "active",
   });
@@ -145,7 +158,11 @@ export class BaseDataForm implements OnInit {
       this.record = await this.api.get<BaseRecord>(
         this.endpoint + "/" + this.route.snapshot.paramMap.get("id"),
       );
-      this.form.patchValue({ ...this.record, phone: this.record.phone || "" });
+      this.form.patchValue({
+        ...this.record,
+        phone: this.record.phone || "",
+        englishName: this.record.english_name || "",
+      });
     } catch (e) {
       this.error = errorMessage(e);
     } finally {

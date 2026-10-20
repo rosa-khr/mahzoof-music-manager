@@ -193,3 +193,53 @@ test("catalog grid filters and sorts full data before paging and normalizes Pers
   assert.equal(one(db, "SELECT COUNT(*) n FROM users").n, 3);
   assert.equal(one(db, "SELECT COUNT(*) n FROM subjects").n, 7);
 });
+
+test("instrument English name persists, supports grid filters, legacy edits and explicit clearing", async () => {
+  const body = {
+    name: "ساز دوزبانه",
+    englishName: " Violin ",
+    status: "active",
+  };
+  let r = await call("/instruments", { method: "POST", body });
+  assert.equal(r.status, 201);
+  assert.equal(r.body.english_name, "Violin");
+  const id = r.body.id;
+  r = await call(`/instruments/${id}`, {
+    method: "PATCH",
+    body: { name: body.name, version: 1 },
+  });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.english_name, "Violin");
+  r = await call(`/instruments/${id}`, {
+    method: "PATCH",
+    body: { ...body, version: 2, englishName: "Piano" },
+  });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.english_name, "Piano");
+  const list = await call(
+    "/instruments?" +
+      new URLSearchParams({
+        filterModel: JSON.stringify({
+          english_name: { filterType: "text", type: "equals", filter: "piano" },
+        }),
+      }),
+  );
+  assert.equal(list.status, 200);
+  assert.ok(list.body.items.some((row) => row.id === id));
+  r = await call(`/instruments/${id}`, {
+    method: "PATCH",
+    body: { ...body, version: 3, englishName: "x".repeat(151) },
+  });
+  assert.equal(r.status, 422);
+  assert.equal((await call(`/instruments/${id}`)).body.english_name, "Piano");
+  r = await call(`/instruments/${id}`, {
+    method: "PATCH",
+    body: { ...body, version: 3, englishName: "" },
+  });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.english_name, "");
+  assert.equal(
+    (await call("/teaching-types")).body.items[0].english_name,
+    undefined,
+  );
+});

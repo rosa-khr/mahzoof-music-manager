@@ -16,6 +16,7 @@ export function openDatabase(
     [1, "001_initial.sql"],
     [2, "002_student_editor.sql"],
     [3, "003_base_data.sql"],
+    [4, "004_instrument_english_name.sql"],
   ]) {
     if (
       db.prepare("SELECT 1 FROM schema_migrations WHERE version=?").get(version)

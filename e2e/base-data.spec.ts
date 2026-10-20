@@ -41,6 +41,9 @@ for (const resource of BASE_RESOURCES) {
     await page
       .getByLabel(resource.nameLabel + " *", { exact: true })
       .fill(name);
+    if (resource.key === "instruments") {
+      await page.getByLabel("نام انگلیسی ساز", { exact: true }).fill("Violin");
+    }
     if (resource.phone)
       await page
         .getByLabel("شماره تماس", { exact: true })
@@ -75,6 +78,12 @@ for (const resource of BASE_RESOURCES) {
     await expect(
       page.getByLabel(resource.nameLabel + " *", { exact: true }),
     ).toHaveValue(name);
+    if (resource.key === "instruments") {
+      await expect(
+        page.getByLabel("نام انگلیسی ساز", { exact: true }),
+      ).toHaveValue("Violin");
+      await page.getByLabel("نام انگلیسی ساز", { exact: true }).fill("Piano");
+    }
     await expect(
       page.locator('.nav-group-toggle[aria-label="اطلاعات پایه"]'),
     ).toHaveAttribute("aria-expanded", "true");
@@ -109,6 +118,10 @@ for (const resource of BASE_RESOURCES) {
     await expect(
       page.getByLabel(resource.nameLabel + " *", { exact: true }),
     ).toHaveValue(name + " ویرایش");
+    if (resource.key === "instruments")
+      await expect(
+        page.getByLabel("نام انگلیسی ساز", { exact: true }),
+      ).toHaveValue("Piano");
     await expect(
       page.getByRole("switch", { name: "وضعیت", exact: true }),
     ).not.toBeChecked();

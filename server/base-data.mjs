@@ -7,7 +7,7 @@ import { parseGridJson, gridCondition } from "./student-grid.mjs";
 const resources = {
   "teaching-types": { table: "teaching_types", title: "نوع تدریس" },
   instructors: { table: "instructors", title: "مدرس", phone: true },
-  instruments: { table: "instruments", title: "ساز" },
+  instruments: { table: "instruments", title: "ساز", english: true },
 };
 function config(req) {
   requireRole(req, ["admin", "secretary"]);
@@ -19,7 +19,7 @@ function config(req) {
   return resources[req.params.resource];
 }
 const columns = (c) =>
-  `id,name,notes,status,version,created_at${c.phone ? ",phone" : ""}`;
+  `id,name,notes,status,version,created_at${c.phone ? ",phone" : ""}${c.english ? ",english_name" : ""}`;
 function record(db, c, id) {
   const row = one(db, `SELECT ${columns(c)} FROM ${c.table} WHERE id=?`, id);
   assert(row, `${c.title} یافت نشد`, 404);
@@ -42,6 +42,10 @@ function validate(c, body) {
     notes,
     status,
     phone,
+    englishName:
+      c.english && body.englishName !== undefined
+        ? text(body.englishName, "نام انگلیسی ساز", 150)
+        : undefined,
   };
 }
 export function installBaseData(app, db) {
@@ -53,6 +57,7 @@ export function installBaseData(app, db) {
       notes: "notes",
       status: "CASE status WHEN 'active' THEN 'فعال' ELSE 'غیرفعال' END",
       ...(c.phone ? { phone: "phone" } : {}),
+      ...(c.english ? { english_name: "english_name" } : {}),
     };
     const offset = integer(q.startRow ?? 0, "شروع ردیف", 0, 10000000);
     const limit = integer(
@@ -113,6 +118,10 @@ export function installBaseData(app, db) {
         fields.push("phone");
         args.push(v.phone);
       }
+      if (c.english) {
+        fields.push("english_name");
+        args.push(v.englishName ?? "");
+      }
       const id = Number(
         run(
           db,
@@ -144,6 +153,10 @@ export function installBaseData(app, db) {
       if (c.phone) {
         updates.push("phone=?");
         args.push(v.phone);
+      }
+      if (c.english && v.englishName !== undefined) {
+        updates.push("english_name=?");
+        args.push(v.englishName);
       }
       run(
         db,

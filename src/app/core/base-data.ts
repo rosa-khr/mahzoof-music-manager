@@ -32,4 +32,5 @@ export interface BaseRecord {
   status: string;
   version: number;
   phone?: string;
+  english_name?: string;
 }
