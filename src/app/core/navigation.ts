@@ -35,6 +35,33 @@ export const MENU_GROUPS: MenuGroup[] = [
     ],
   },
   {
+    id: "base",
+    icon: "music",
+    title: "اطلاعات پایه",
+    items: [
+      ...BASE_RESOURCES.map((resource) => ({
+        path: "/base-data/" + resource.key,
+        title: resource.title,
+        icon: resource.icon,
+        access: "education" as const,
+      })),
+      {
+        path: "/subjects",
+        title: "واحدهای آموزشی",
+        icon: "music",
+        access: "education",
+        planned: true,
+      },
+      {
+        path: "/institutions",
+        title: "آموزشگاه‌های دیگر",
+        icon: "building",
+        access: "education",
+        planned: true,
+      },
+    ],
+  },
+  {
     id: "finance",
     icon: "wallet",
     title: "امور مالی",
@@ -58,33 +85,6 @@ export const MENU_GROUPS: MenuGroup[] = [
         title: "حساب‌های بانکی",
         icon: "bank",
         access: "finance",
-        planned: true,
-      },
-    ],
-  },
-  {
-    id: "base",
-    icon: "music",
-    title: "اطلاعات پایه",
-    items: [
-      ...BASE_RESOURCES.map((resource) => ({
-        path: "/base-data/" + resource.key,
-        title: resource.title,
-        icon: resource.icon,
-        access: "education" as const,
-      })),
-      {
-        path: "/subjects",
-        title: "واحدهای آموزشی",
-        icon: "music",
-        access: "education",
-        planned: true,
-      },
-      {
-        path: "/institutions",
-        title: "آموزشگاه‌های دیگر",
-        icon: "building",
-        access: "education",
         planned: true,
       },
     ],
