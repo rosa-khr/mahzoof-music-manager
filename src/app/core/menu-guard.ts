@@ -9,7 +9,16 @@ export const menuGuard: CanActivateFn = async (route) => {
   if (!api.user()) await api.restore();
   if (!api.user()) return router.createUrlTree(["/login"]);
   return (
-    canOpenMenu(api.user(), route.data["access"] as MenuAccess) ||
-    router.createUrlTree(["/"])
+    canOpenMenu(
+      api.user(),
+      route.data["access"] as MenuAccess,
+      route.data["menu"] ||
+        ("/" + route.routeConfig?.path)
+          .replace(/\/:.*$/, "")
+          .replace(/\/new$/, ""),
+    ) ||
+    router.createUrlTree([
+      api.user()?.permissions?.includes("/") === false ? "/account" : "/",
+    ])
   );
 };

@@ -244,6 +244,37 @@ test("editing shared guardian preserves sibling contacts and education history",
   assert.equal(r.body.terms.length, 0);
 });
 
+test("student editor adds a selected instrument as one independent learning path", async () => {
+  const student = (await call("/students", { method: "POST", data: fields })).body;
+  const instrument = (
+    await call("/base-data/instruments", {
+      method: "POST",
+      data: { name: "ساز افزوده‌شده در ویرایش" },
+    })
+  ).body;
+  let edited = await call(`/students/${student.id}`, {
+    method: "PATCH",
+    data: { ...fields, version: 1, instrumentId: instrument.id },
+  });
+  assert.equal(edited.status, 200, JSON.stringify(edited.body));
+  assert.equal(edited.body.enrollments.length, 2);
+  assert.equal(
+    edited.body.enrollments.some((path) => path.instrument_id === instrument.id),
+    true,
+  );
+  edited = await call(`/students/${student.id}`, {
+    method: "PATCH",
+    data: { ...fields, version: 2, instrumentId: instrument.id },
+  });
+  assert.equal(edited.status, 200, JSON.stringify(edited.body));
+  assert.equal(
+    edited.body.enrollments.filter(
+      (path) => path.instrument_id === instrument.id,
+    ).length,
+    1,
+  );
+});
+
 test("student age and address persist, validate atomically, preserve legacy edits and respect privacy", async () => {
   let r = await call("/students", {
     method: "POST",

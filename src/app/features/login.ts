@@ -1,3 +1,4 @@
+import { Password } from "../shared/password";
 import {
   Component,
   inject,
@@ -10,7 +11,7 @@ import { Field } from "../shared/ui";
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [ReactiveFormsModule, Field],
+  imports: [Password, ReactiveFormsModule, Field],
   template: `<main class="login-page">
     <section class="card login-card">
       <p class="eyebrow">آموزشگاه موسیقی شهرام محذوف</p>
@@ -30,6 +31,7 @@ import { Field } from "../shared/ui";
           ><input
             id="password"
             type="password"
+            appPassword
             formControlName="password"
             autocomplete="current-password"
             placeholder=" "

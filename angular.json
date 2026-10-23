@@ -16,6 +16,11 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "vazirmatn-arabic-*-normal.woff2",
+                "input": "node_modules/@fontsource/vazirmatn/files",
+                "output": "fonts/vazirmatn"
               }
             ],
             "styles": [
@@ -23,10 +28,13 @@
               "node_modules/ag-grid-community/styles/ag-grid.css",
               "node_modules/ag-grid-community/styles/ag-theme-material.css",
               "node_modules/select2/dist/css/select2.min.css",
+              "node_modules/@yaireo/tagify/dist/tagify.css",
+              "node_modules/sweetalert2/dist/sweetalert2.min.css",
               "src/styles.css",
               "src/grid.css",
               "src/student-form.css",
-              "src/select2.css"
+              "src/select2.css",
+              "src/panel-theme.css"
             ],
             "outputPath": "dist/mahzoof",
             "index": "src/index.html",

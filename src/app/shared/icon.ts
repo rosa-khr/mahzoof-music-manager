@@ -18,6 +18,10 @@ import { Component, Input } from "@angular/core";
 export class Icon {
   @Input() name = "grid";
   paths: Record<string, string> = {
+    lock: "M6 10V7a6 6 0 0 1 12 0v3 M5 10h14a1 1 0 0 1 1 1v10H4V11a1 1 0 0 1 1-1 M12 14v3",
+    resetKey:
+      "M11.27 8H22v8h-3v-3h-3v-2h-4.73a5 5 0 1 1 0-3Z M8 9.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0",
+    key: "m21 2-2 2m-7.39 7.39a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78Zm0 0L15.5 7.5M15.5 7.5l3 3L22 7l-3-3",
     grid: "M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z",
     users:
       "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75",
@@ -47,6 +51,7 @@ export class Icon {
     music:
       "M9 18V5l12-2v13 M9 9l12-2 M9 18a3 3 0 1 1-3-3c1.66 0 3 1.34 3 3 M21 16a3 3 0 1 1-3-3c1.66 0 3 1.34 3 3",
     check: "m5 12 4 4L19 6",
+    renew: "M20 7v5h-5 M4 17v-5h5 M19 12a7 7 0 0 0-12-5 M5 12a7 7 0 0 0 12 5",
     close: "m6 6 12 12 M6 18 18 6",
   };
 }

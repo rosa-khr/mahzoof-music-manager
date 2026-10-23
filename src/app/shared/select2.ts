@@ -129,8 +129,12 @@ export class Select2 implements AfterViewInit, OnDestroy {
       if (this.destroyed || !this.widget) return;
       // Options and writeValue may arrive asynchronously in the same render.
       const value = this.control?.control?.value;
-      if (value !== undefined)
-        this.widget.val(value == null ? "" : String(value));
+      if (value !== undefined) {
+        // Angular's multiple-select accessor owns option identity (including
+        // numeric [value] bindings); Select2 only needs to repaint that state.
+        if (!this.element.multiple)
+          this.widget.val(value == null ? "" : String(value));
+      }
       this.widget.trigger("change.select2");
       const disabled = this.element.matches(":disabled");
       const container = this.element.nextElementSibling;

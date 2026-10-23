@@ -11,6 +11,8 @@ import {
   choice,
   timezone,
   normalize,
+  latinDigits,
+  date,
 } from "./validation.mjs";
 
 const upload = multer({
@@ -127,7 +129,12 @@ export function studentPersonal(body, old = {}) {
     body.address === undefined
       ? old.address || ""
       : text(body.address, "آدرس", 2000);
-  const value = body.age === undefined ? old.age : body.age;
+  const value =
+    body.age === undefined
+      ? old.age
+      : typeof body.age === "string"
+        ? latinDigits(body.age)
+        : body.age;
   let age = null;
   if (value !== undefined && value !== null && value !== "") {
     assert(
@@ -137,7 +144,67 @@ export function studentPersonal(body, old = {}) {
     );
     age = integer(value, "سن", 0, 130);
   }
-  return { address, age };
+  return {
+    address,
+    age,
+    contactOwner: choice(
+      body.contactOwner ?? old.contact_owner ?? "student",
+      ["student", "parent", "other"],
+      "صاحب شماره تماس",
+    ),
+    birthDate:
+      body.birthDate === undefined
+        ? old.birth_date || null
+        : date(body.birthDate),
+    gender: choice(
+      body.gender ?? old.gender ?? "",
+      ["", "female", "male", "other"],
+      "جنسیت",
+    ),
+    nationalId: text(
+      body.nationalId ?? old.national_id,
+      "کد ملی یا شناسه خارجی",
+      80,
+    ),
+    landline: latinDigits(text(body.landline ?? old.landline, "تلفن ثابت", 30)),
+    country: text(body.country ?? old.country, "کشور", 100),
+    city: text(body.city ?? old.city, "شهر", 100),
+    educationLevel: text(
+      body.educationLevel ?? old.education_level,
+      "تحصیلات",
+      300,
+    ),
+    artisticHistory: text(
+      body.artisticHistory ?? old.artistic_history,
+      "پیشینه هنری",
+      2000,
+    ),
+    referralSource: text(
+      body.referralSource ?? old.referral_source,
+      "معرف",
+      500,
+    ),
+    registrationGoal: text(
+      body.registrationGoal ?? old.registration_goal,
+      "هدف ثبت‌نام",
+      1000,
+    ),
+    interviewNotes: text(
+      body.interviewNotes ?? old.interview_notes,
+      "مصاحبه",
+      2000,
+    ),
+    internalNotes: text(
+      body.internalNotes ?? old.internal_notes,
+      "یادداشت داخلی",
+      2000,
+    ),
+    audienceGroup: choice(
+      body.audienceGroup ?? old.audience_group ?? "",
+      ["", "child", "teen", "adult"],
+      "گروه آموزشی",
+    ),
+  };
 }
 export function installStudentEditor(app, db, view) {
   app.get("/api/students/:id/photo", (req, res) => {
@@ -175,9 +242,9 @@ export function installStudentEditor(app, db, view) {
         last = text(b.lastName, "نام خانوادگی فارسی", 100, true),
         ef = text(b.englishFirst, "نام انگلیسی", 100),
         el = text(b.englishLast, "نام خانوادگی انگلیسی", 100),
-        phone = text(b.phone, "شماره تماس", 30),
+        phone = latinDigits(text(b.phone, "شماره تماس", 30)),
         gName = text(b.guardianName, "نام سرپرست", 150),
-        gPhone = text(b.guardianPhone, "تماس سرپرست", 30),
+        gPhone = latinDigits(text(b.guardianPhone, "تماس سرپرست", 30)),
         reason = text(b.missingContactReason, "دلیل نبود تماس", 1000);
       for (const p of [phone, gPhone])
         if (p) assert(/^\+?[0-9 ()-]{6,30}$/.test(p), "شماره تماس نامعتبر است");
@@ -199,8 +266,12 @@ export function installStudentEditor(app, db, view) {
         );
       const otherGuardians = guardians.filter((g) => g.id !== target);
       if (!phone && !gPhone && !otherGuardians.some((g) => !!g.phone)) {
-        requireRole(req, ["admin"]);
-        assert(reason, "دلیل نبود تماس لازم است");
+        const previouslyHadContact =
+          !!old.phone || guardians.some((guardian) => !!guardian.phone);
+        assert(
+          !previouslyHadContact,
+          "راه تماس هنرجو یا والد را وارد کنید",
+        );
       }
       if (target)
         run(
@@ -245,9 +316,26 @@ export function installStudentEditor(app, db, view) {
         ["active", "inactive", "archived"],
         "وضعیت",
       );
+      if (b.instrumentId) {
+        const instrumentId = integer(b.instrumentId, "ساز");
+        assert(
+          one(
+            db,
+            "SELECT 1 FROM instruments WHERE id=? AND status='active'",
+            instrumentId,
+          ),
+          "ساز فعال را انتخاب کنید",
+        );
+        run(
+          db,
+          "INSERT OR IGNORE INTO enrollments(student_id,instrument_id) VALUES(?,?)",
+          id,
+          instrumentId,
+        );
+      }
       run(
         db,
-        "UPDATE students SET first_name=?,last_name=?,english_first=?,english_last=?,phone=?,timezone=?,history=?,missing_contact_reason=?,status=?,search_text=?,address=?,age=?,version=version+1 WHERE id=?",
+        "UPDATE students SET first_name=?,last_name=?,english_first=?,english_last=?,phone=?,timezone=?,history=?,missing_contact_reason=?,status=?,search_text=?,address=?,age=?,contact_owner=?,birth_date=?,gender=?,national_id=?,landline=?,country=?,city=?,education_level=?,artistic_history=?,referral_source=?,registration_goal=?,interview_notes=?,internal_notes=?,audience_group=?,version=version+1 WHERE id=?",
         first,
         last,
         ef,
@@ -262,6 +350,20 @@ export function installStudentEditor(app, db, view) {
         ),
         personal.address,
         personal.age,
+        personal.contactOwner,
+        personal.birthDate,
+        personal.gender,
+        personal.nationalId,
+        personal.landline,
+        personal.country,
+        personal.city,
+        personal.educationLevel,
+        personal.artisticHistory,
+        personal.referralSource,
+        personal.registrationGoal,
+        personal.interviewNotes,
+        personal.internalNotes,
+        personal.audienceGroup,
         id,
       );
       saveStudentPhoto(db, id, photo);
@@ -272,5 +374,74 @@ export function installStudentEditor(app, db, view) {
       });
     });
     res.json(view(db, id, req.user.role));
+  });
+  app.delete("/api/students/:id", (req, res) => {
+    requireRole(req, ["admin"]);
+    const id = integer(req.params.id, "هنرجو");
+    const version = integer(req.query.version, "نسخه");
+    transaction(db, () => {
+      const student = one(db, "SELECT * FROM students WHERE id=?", id);
+      assert(student, "هنرجو یافت نشد", 404);
+      assert(
+        student.version === version,
+        "اطلاعات هنرجو تغییر کرده است؛ فهرست را دوباره بارگذاری کنید",
+        409,
+      );
+      const hasHistory =
+        one(
+          db,
+          "SELECT 1 FROM student_terms st JOIN enrollments e ON e.id=st.enrollment_id WHERE e.student_id=? LIMIT 1",
+          id,
+        ) ||
+        one(db, "SELECT 1 FROM invoices WHERE student_id=? LIMIT 1", id) ||
+        one(db, "SELECT 1 FROM payments WHERE student_id=? LIMIT 1", id) ||
+        one(
+          db,
+          "SELECT 1 FROM private_documents WHERE student_id=? LIMIT 1",
+          id,
+        );
+      assert(
+        !hasHistory,
+        "این هنرجو سابقه آموزشی، مالی یا سند خصوصی دارد و قابل حذف نیست؛ وضعیت پرونده را بایگانی کنید",
+        409,
+      );
+      const guardianIds = all(
+        db,
+        "SELECT guardian_id FROM student_guardians WHERE student_id=?",
+        id,
+      ).map((row) => row.guardian_id);
+      run(
+        db,
+        "DELETE FROM weekly_schedules WHERE enrollment_id IN (SELECT id FROM enrollments WHERE student_id=?)",
+        id,
+      );
+      run(
+        db,
+        "DELETE FROM enrollment_settings WHERE enrollment_id IN (SELECT id FROM enrollments WHERE student_id=?)",
+        id,
+      );
+      run(db, "DELETE FROM enrollments WHERE student_id=?", id);
+      run(
+        db,
+        "DELETE FROM student_education_preferences WHERE student_id=?",
+        id,
+      );
+      run(db, "DELETE FROM student_photos WHERE student_id=?", id);
+      run(db, "DELETE FROM student_guardians WHERE student_id=?", id);
+      run(db, "DELETE FROM students WHERE id=?", id);
+      for (const guardianId of guardianIds)
+        run(
+          db,
+          "DELETE FROM guardians WHERE id=? AND NOT EXISTS(SELECT 1 FROM student_guardians WHERE guardian_id=?)",
+          guardianId,
+          guardianId,
+        );
+      audit(db, req.user, "student-deleted", id, {
+        code: student.code,
+        name: `${student.first_name} ${student.last_name}`.trim(),
+        version,
+      });
+    });
+    res.json({ ok: true });
   });
 }

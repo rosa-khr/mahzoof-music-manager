@@ -17,6 +17,7 @@ export function text(value, label, max = 500, required = false) {
   return v;
 }
 export function integer(value, label, min = 1, max = 10000) {
+  if (typeof value === "string") value = latinDigits(value);
   assert(
     Number.isSafeInteger(Number(value)) &&
       Number(value) >= min &&
@@ -55,7 +56,7 @@ export function timezone(value) {
 }
 export function money(value, currency) {
   choice(currency, ["TOMAN", "USD"], "ارز");
-  const v = String(value ?? "");
+  const v = latinDigits(String(value ?? ""));
   assert(
     currency === "USD" ? /^\d+(\.\d{1,2})?$/.test(v) : /^\d+$/.test(v),
     "مبلغ باید مثبت و با دقت مجاز ارز باشد",
@@ -72,3 +73,7 @@ export function money(value, currency) {
 }
 export const normalize = (v) =>
   v.normalize("NFKC").replace(/ي/g, "ی").replace(/ك/g, "ک").toLowerCase();
+export const latinDigits = (v) =>
+  v
+    .replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))
+    .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));

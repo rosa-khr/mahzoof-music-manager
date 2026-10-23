@@ -22,6 +22,11 @@ export class Api {
   patch<T>(path: string, body: unknown) {
     return firstValueFrom(this.http.patch<T>("/api" + path, body));
   }
+  file(path: string) { return firstValueFrom(this.http.get('/api'+path,{responseType:'blob'})); }
+  put<T>(path:string,body:unknown) {return firstValueFrom(this.http.put<T>('/api'+path,body));}
+  delete<T>(path: string) {
+    return firstValueFrom(this.http.delete<T>("/api" + path));
+  }
   async restore() {
     try {
       const v = await this.get<{ user: User; csrf: string }>("/auth/me");
@@ -39,7 +44,7 @@ export class Api {
     );
     this.user.set(v.user);
     this.csrf = v.csrf;
-    await this.router.navigateByUrl("/");
+    await this.router.navigateByUrl(v.user.permissions?.[0] || "/account");
   }
   async logout() {
     await this.post("/auth/logout", {});

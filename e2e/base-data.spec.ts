@@ -13,7 +13,7 @@ async function login(page: Page, role = "admin") {
   ).toBeVisible();
 }
 for (const resource of BASE_RESOURCES.filter(
-  (r) => r.key !== "session-statuses",
+  (r) => r.key !== "session-statuses" && r.key !== "instructors",
 )) {
   test(`${resource.key}: base menu, AG Grid, separate create/edit, persistence and filter return`, async ({
     page,
@@ -204,6 +204,8 @@ test("accountant cannot open base lists, create or edit routes", async ({
       await page.goto("/base-data/" + r.key + suffix);
       await expect(page).toHaveURL("http://localhost:4310/");
     }
+  await page.goto("/base-data/instructors/1");
+  await expect(page).toHaveURL("http://localhost:4310/");
 });
 
 test("session statuses: four real rows, fixed codes, separate editing and reload", async ({

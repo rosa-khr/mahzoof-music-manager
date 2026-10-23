@@ -16,6 +16,7 @@ import { BaseResource, BaseRecord } from "../core/base-data";
 import { DataGrid, actionColumn, statusColumn } from "../shared/data-grid";
 import { PageHeader } from "../shared/ui";
 import { Icon } from "../shared/icon";
+import { Toasts } from "../shared/toast";
 
 @Component({
   standalone: true,
@@ -40,9 +41,6 @@ import { Icon } from "../shared/icon";
         <button class="btn btn-light btn-sm" (click)="load()">تلاش مجدد</button>
       </p>
     }
-    @if (message) {
-      <p class="alert alert-success" role="status">{{ message }}</p>
-    }
     <app-data-grid
       [title]="'فهرست ' + resource.title"
       [columns]="columns"
@@ -57,11 +55,11 @@ export class BaseDataList {
   route = inject(ActivatedRoute);
   router = inject(Router);
   api = inject(Api);
+  toasts = inject(Toasts);
   cdr = inject(ChangeDetectorRef);
   resource = this.route.snapshot.data["resource"] as BaseResource;
   path = "/base-data/" + this.resource.key;
   error = "";
-  message = history.state?.saved ? "اطلاعات با موفقیت ذخیره شد." : "";
   total = 0;
   loading = false;
   grid?: GridApi<BaseRecord>;
@@ -69,7 +67,43 @@ export class BaseDataList {
   requestVersion = 0;
   pendingPage: number | null = null;
   columns: ColDef<BaseRecord>[] = [
-    { field: "name", headerName: this.resource.nameLabel, minWidth: 230 },
+    {
+      field: "name",
+      headerName:
+        this.resource.key === "instructors"
+          ? "مدرس (نام یا تماس)"
+          : this.resource.nameLabel,
+      minWidth: this.resource.key === "instructors" ? 250 : 230,
+      ...(this.resource.key === "instructors"
+        ? {
+            cellRenderer: (
+              p: import("ag-grid-community").ICellRendererParams<BaseRecord>,
+            ) => {
+              if (!p.data) return "";
+              const row = document.createElement("div");
+              row.className = "grid-student-identity";
+              if (p.data.photo_url) {
+                const image = document.createElement("img");
+                image.src = p.data.photo_url;
+                image.alt = "";
+                image.loading = "lazy";
+                row.append(image);
+              } else {
+                const avatar = document.createElement("span");
+                avatar.className =
+                  "grid-student-avatar student-avatar-placeholder";
+                avatar.setAttribute("aria-hidden", "true");
+                row.append(avatar);
+              }
+              const name = document.createElement("span");
+              name.className = "grid-student-name";
+              name.textContent = p.data.name;
+              row.append(name);
+              return row;
+            },
+          }
+        : {}),
+    },
     ...(this.resource.key === "session-statuses"
       ? [
           {
@@ -80,6 +114,62 @@ export class BaseDataList {
           },
         ]
       : []),
+    ...(this.resource.key === "teaching-types"
+      ? [
+          {
+            field: "requires_academy" as const,
+            headerName: "آموزشگاه",
+            minWidth: 190,
+            valueGetter: (
+              p: import("ag-grid-community").ValueGetterParams<BaseRecord>,
+            ) =>
+              p.data?.requires_academy == null
+                ? "تعیین نشده"
+                : p.data.requires_academy
+                  ? "نیاز به آموزشگاه"
+                  : "بدون آموزشگاه",
+          },
+        ]
+      : []),
+    ...(this.resource.key === "payment-methods"
+      ? [
+          {
+            field: "settlement_type" as const,
+            headerName: "شیوه تسویه",
+            minWidth: 160,
+            valueGetter: (
+              p: import("ag-grid-community").ValueGetterParams<BaseRecord>,
+            ) =>
+              ({ single: "یکجا", installment: "اقساطی", free: "بدون شهریه" })[
+                p.data?.settlement_type || "single"
+              ],
+          },
+          {
+            field: "payment_currency" as const,
+            headerName: "نوع پرداخت",
+            minWidth: 150,
+            valueGetter: (
+              p: import("ag-grid-community").ValueGetterParams<BaseRecord>,
+            ) =>
+              p.data?.payment_currency === "rial"
+                ? "ریالی"
+                : p.data?.payment_currency === "foreign"
+                  ? "ارزی"
+                  : "—",
+          },
+          {
+            field: "installment_count" as const,
+            headerName: "تعداد اقساط",
+            minWidth: 150,
+            valueFormatter: (
+              p: import("ag-grid-community").ValueFormatterParams<BaseRecord>,
+            ) =>
+              p.value == null
+                ? "—"
+                : new Intl.NumberFormat("fa-IR").format(p.value),
+          },
+        ]
+      : []),
     ...(this.resource.key === "instruments"
       ? [
           {
@@ -87,6 +177,32 @@ export class BaseDataList {
             headerName: "نام انگلیسی ساز",
             minWidth: 180,
             cellClass: "grid-ltr",
+          },
+          {
+            field: "rate_toman_30" as const,
+            headerName: "نرخ ۳۰ دقیقه تومان",
+            minWidth: 190,
+            filter: "agNumberColumnFilter",
+            valueFormatter: (
+              p: import("ag-grid-community").ValueFormatterParams<BaseRecord>,
+            ) =>
+              p.value == null
+                ? "ثبت نشده"
+                : new Intl.NumberFormat("fa-IR").format(p.value),
+          },
+          {
+            field: "rate_usd_cents_30" as const,
+            headerName: "نرخ ۳۰ دقیقه دلار",
+            minWidth: 180,
+            filter: "agNumberColumnFilter",
+            valueFormatter: (
+              p: import("ag-grid-community").ValueFormatterParams<BaseRecord>,
+            ) =>
+              p.value == null
+                ? "ثبت نشده"
+                : new Intl.NumberFormat("fa-IR", {
+                    minimumFractionDigits: 2,
+                  }).format(p.value / 100),
           },
         ]
       : []),
@@ -100,14 +216,41 @@ export class BaseDataList {
           },
         ]
       : []),
-    {
-      field: "notes",
-      headerName: "توضیحات",
-      minWidth: 240,
-      tooltipField: "notes",
-    },
+    ...(this.resource.key === "instructors"
+      ? [
+          {
+            field: "instrument_names" as const,
+            headerName: "سازهای تخصصی",
+            minWidth: 240,
+            tooltipField: "instrument_names" as const,
+          },
+        ]
+      : []),
+    ...(this.resource.key !== "instructors"
+      ? [
+          {
+            field: "notes",
+            headerName: "توضیحات",
+            minWidth: 240,
+            tooltipField: "notes",
+          } as ColDef<BaseRecord>,
+        ]
+      : []),
     statusColumn<BaseRecord>("status"),
     actionColumn<BaseRecord>((r) => [
+      ...(this.resource.key === "instructors"
+        ? [
+            {
+              label: "باز کردن پرونده",
+              icon: "eye" as const,
+              href: this.path + "/" + r.id + (location.search || ""),
+              run: () =>
+                void this.router.navigate([this.path, r.id], {
+                  queryParams: this.route.snapshot.queryParams,
+                }),
+            },
+          ]
+        : []),
       {
         label: "ویرایش " + this.resource.singular,
         icon: "edit",
@@ -202,6 +345,7 @@ export class BaseDataList {
     } catch (e) {
       if (version === this.requestVersion) {
         this.error = errorMessage(e);
+        this.toasts.show(this.error, "error");
         params.failCallback();
       }
     } finally {

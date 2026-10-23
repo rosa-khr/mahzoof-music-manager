@@ -5,14 +5,15 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 import { one, run, audit, transaction } from "./db.mjs";
+import { decorateUser, roleRecord } from "./permissions.mjs";
 import { assert, text, choice } from "./validation.mjs";
 export const hashToken = (v) => createHash("sha256").update(v).digest("hex");
 export function hashPassword(password) {
   assert(
     typeof password === "string" &&
-      password.length >= 12 &&
+      password.length >= 8 &&
       password.length <= 256,
-    "رمز باید ۱۲ تا ۲۵۶ نویسه باشد",
+    "رمز باید ۸ تا ۲۵۶ نویسه باشد",
   );
   const salt = randomBytes(16).toString("hex");
   return salt + ":" + scryptSync(password, salt, 64).toString("hex");
@@ -24,22 +25,26 @@ export function verifyPassword(password, stored) {
 }
 export function createUser(db, username, password, role = "admin") {
   username = text(username, "نام کاربری", 80, true);
-  choice(role, ["admin", "secretary", "accountant"], "نقش");
+  const assigned = roleRecord(db, role);
+  assert(assigned.active, "نقش غیرفعال قابل تخصیص نیست");
   return run(
     db,
-    "INSERT INTO users(username,password_hash,role) VALUES(?,?,?)",
+    "INSERT INTO users(username,password_hash,role,role_id) VALUES(?,?,?,?)",
     username,
     hashPassword(password),
-    role,
+    ["admin", "secretary", "accountant"].includes(role) ? role : "secretary",
+    assigned.id,
   ).lastInsertRowid;
 }
 export const publicUser = (u) => ({
   id: u.id,
   username: u.username,
-  role: u.role,
-  education: u.role !== "accountant",
-  finance: u.role !== "secretary",
-  admin: u.role === "admin",
+  role: u.roleCode,
+  roleName: u.roleName,
+  education: u.education,
+  finance: u.finance,
+  admin: u.isAdmin,
+  permissions: u.permissions,
 });
 export function installAuth(app, db, origin) {
   app.use("/api", (req, res, next) => {
@@ -60,7 +65,11 @@ export function installAuth(app, db, origin) {
       "تلاش‌های ورود بیش از حد است؛ ۱۵ دقیقه بعد تلاش کنید",
       429,
     );
-    const user = one(db, "SELECT * FROM users WHERE username=?", username);
+    const user = one(
+      db,
+      "SELECT u.* FROM users u JOIN roles r ON r.id=u.role_id WHERE u.username=? AND r.active=1",
+      username,
+    );
     const valid = verifyPassword(
       String(req.body.password || ""),
       user?.password_hash || dummyHash,
@@ -99,7 +108,7 @@ export function installAuth(app, db, origin) {
       maxAge: 8 * 3600000,
       path: "/",
     });
-    res.json({ user: publicUser(user), csrf });
+    res.json({ user: publicUser(decorateUser(db, user)), csrf });
   });
   app.use("/api", (req, res, next) => {
     const token = (req.headers.cookie || "")
@@ -111,7 +120,7 @@ export function installAuth(app, db, origin) {
       token &&
       one(
         db,
-        "SELECT u.*,s.csrf,s.expires_at FROM auth_sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=?",
+        "SELECT u.*,s.csrf,s.expires_at FROM auth_sessions s JOIN users u ON u.id=s.user_id JOIN roles r ON r.id=u.role_id WHERE s.token_hash=? AND r.active=1",
         hashToken(token),
       );
     assert(
@@ -125,7 +134,7 @@ export function installAuth(app, db, origin) {
         "درخواست امنیتی نامعتبر است",
         403,
       );
-    req.user = auth;
+    req.user = decorateUser(db, auth);
     req.token = token;
     next();
   });
@@ -149,7 +158,12 @@ export function installAuth(app, db, origin) {
     );
     const hash = hashPassword(req.body.newPassword);
     transaction(db, () => {
-      run(db, "UPDATE users SET password_hash=? WHERE id=?", hash, req.user.id);
+      run(
+        db,
+        "UPDATE users SET password_hash=?,auth_version=auth_version+1 WHERE id=?",
+        hash,
+        req.user.id,
+      );
       run(db, "DELETE FROM auth_sessions WHERE user_id=?", req.user.id);
       audit(db, req.user, "password-change", req.user.id, {});
     });
@@ -158,5 +172,10 @@ export function installAuth(app, db, origin) {
 }
 const dummyHash = hashPassword(randomBytes(24).toString("hex"));
 export function requireRole(req, roles) {
-  assert(roles.includes(req.user.role), "دسترسی مجاز نیست", 403);
+  const u = req.user;
+  const allowed =
+    roles.length === 1 && roles[0] === "admin"
+      ? (u.isAdmin ?? u.role === "admin")
+      : roles.includes(u.role);
+  assert(allowed, "دسترسی مجاز نیست", 403);
 }

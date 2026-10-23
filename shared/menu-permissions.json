@@ -1,0 +1,117 @@
+[
+  { "path": "/", "title": "کارهای امروز", "group": "میز کار", "access": "all" },
+  {
+    "path": "/students",
+    "title": "پرونده هنرجویان",
+    "group": "افراد",
+    "access": "all"
+  },
+  {
+    "path": "/subjects",
+    "title": "آموزشگاه‌ها",
+    "group": "اطلاعات پایه",
+    "access": "education"
+  },
+  {
+    "path": "/base-data/instructors",
+    "title": "مدرسین",
+    "group": "افراد",
+    "access": "education"
+  },
+  {
+    "path": "/base-data/instruments",
+    "title": "سازها",
+    "group": "اطلاعات پایه",
+    "access": "education"
+  },
+  {
+    "path": "/base-data/teaching-types",
+    "title": "شیوه برگزاری",
+    "group": "اطلاعات پایه",
+    "access": "education"
+  },
+  {
+    "path": "/base-data/session-statuses",
+    "title": "وضعیت جلسات ترم",
+    "group": "اطلاعات پایه",
+    "access": "education"
+  },
+  {
+    "path": "/base-data/payment-methods",
+    "title": "شیوه‌های پرداخت",
+    "group": "اطلاعات پایه",
+    "access": "finance"
+  },
+  {
+    "path": "/invoices",
+    "title": "صورتحساب‌ها",
+    "group": "امور مالی",
+    "access": "finance"
+  },
+  {
+    "path": "/payments",
+    "title": "دریافت‌ها",
+    "group": "امور مالی",
+    "access": "finance"
+  },
+  {
+    "path": "/bank-accounts",
+    "title": "حساب‌های بانکی",
+    "group": "امور مالی",
+    "access": "finance"
+  },
+  {
+    "path": "/certificate-requests",
+    "title": "درخواست‌های مدرک",
+    "group": "مدارک",
+    "access": "education"
+  },
+  {
+    "path": "/certificate-types",
+    "title": "انواع مدارک",
+    "group": "مدارک",
+    "access": "admin"
+  },
+  {
+    "path": "/reports/finance",
+    "title": "مالی",
+    "group": "گزارش‌ها",
+    "access": "finance"
+  },
+  {
+    "path": "/users",
+    "title": "کاربران",
+    "group": "مدیریت امنیت",
+    "access": "admin"
+  },
+  {
+    "path": "/roles",
+    "title": "نقش‌ها",
+    "group": "مدیریت امنیت",
+    "access": "admin"
+  },
+  {
+    "path": "/registration-policies",
+    "title": "قوانین ثبت‌نام",
+    "group": "تنظیمات",
+    "access": "education"
+  },
+  {
+    "path": "/settings",
+    "title": "تنظیمات آموزشگاه",
+    "group": "تنظیمات",
+    "access": "admin"
+  },
+  {
+    "path": "/settings/letterhead",
+    "title": "مشخصات و سربرگ",
+    "group": "تنظیمات",
+    "access": "admin"
+  },
+  {
+    "path": "/audit-log",
+    "title": "سابقه عملیات",
+    "group": "تنظیمات",
+    "access": "admin"
+  }
+]

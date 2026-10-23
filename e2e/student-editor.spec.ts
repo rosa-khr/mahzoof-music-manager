@@ -94,5 +94,8 @@ test("separate student editor, photo persistence, edit and removal", async ({
   await expect(page).toHaveURL(profile);
   await page.reload();
   await expect(page.locator(".profile-photo")).toHaveCount(0);
+  await expect(
+    page.locator(".dossier-avatar.student-avatar-placeholder"),
+  ).toBeVisible();
   expect(errors).toEqual([]);
 });

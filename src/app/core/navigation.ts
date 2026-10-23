@@ -8,6 +8,7 @@ export interface MenuItem {
   icon: string;
   access: MenuAccess;
   planned?: boolean;
+  section?: string;
 }
 export interface MenuGroup {
   id: string;
@@ -24,13 +25,24 @@ export const MENU_GROUPS: MenuGroup[] = [
     icon: "grid",
     direct: true,
     title: "میز کار",
+    items: [{ path: "/", title: "کارهای امروز", icon: "grid", access: "all" }],
+  },
+  {
+    id: "people",
+    icon: "users",
+    title: "افراد",
     items: [
-      { path: "/", title: "کارهای امروز", icon: "grid", access: "all" },
       {
         path: "/students",
         title: "پرونده هنرجویان",
         icon: "users",
         access: "all",
+      },
+      {
+        path: "/base-data/instructors",
+        title: "مدرسین",
+        icon: "users",
+        access: "education",
       },
     ],
   },
@@ -39,26 +51,23 @@ export const MENU_GROUPS: MenuGroup[] = [
     icon: "music",
     title: "اطلاعات پایه",
     items: [
-      ...BASE_RESOURCES.map((resource) => ({
+      {
+        path: "/subjects",
+        title: "آموزشگاه‌ها",
+        icon: "building",
+        access: "education",
+      },
+      ...BASE_RESOURCES.filter(
+        (resource) => resource.key !== "instructors",
+      ).map((resource) => ({
         path: "/base-data/" + resource.key,
         title: resource.title,
         icon: resource.icon,
-        access: "education" as const,
+        access:
+          resource.key === "payment-methods"
+            ? ("finance" as const)
+            : ("education" as const),
       })),
-      {
-        path: "/subjects",
-        title: "واحدهای آموزشی",
-        icon: "music",
-        access: "education",
-        planned: true,
-      },
-      {
-        path: "/institutions",
-        title: "آموزشگاه‌های دیگر",
-        icon: "building",
-        access: "education",
-        planned: true,
-      },
     ],
   },
   {
@@ -92,15 +101,8 @@ export const MENU_GROUPS: MenuGroup[] = [
   {
     id: "documents",
     icon: "document",
-    title: "قوانین و مدارک",
+    title: "مدارک",
     items: [
-      {
-        path: "/registration-policies",
-        title: "قوانین ثبت‌نام",
-        icon: "document",
-        access: "education",
-        planned: true,
-      },
       {
         path: "/certificate-requests",
         title: "درخواست‌های مدرک",
@@ -123,15 +125,8 @@ export const MENU_GROUPS: MenuGroup[] = [
     title: "گزارش‌ها",
     items: [
       {
-        path: "/reports/education",
-        title: "گزارش‌های آموزشی",
-        icon: "chart",
-        access: "education",
-        planned: true,
-      },
-      {
         path: "/reports/finance",
-        title: "گزارش‌های مالی",
+        title: "مالی",
         icon: "chart",
         access: "finance",
         planned: true,
@@ -139,16 +134,34 @@ export const MENU_GROUPS: MenuGroup[] = [
     ],
   },
   {
-    id: "management",
-    icon: "settings",
-    title: "مدیریت",
+    id: "user-management",
+    icon: "lock",
+    title: "مدیریت امنیت",
     items: [
       {
         path: "/users",
-        title: "کاربران و نقش‌ها",
+        title: "کاربران",
         icon: "users",
         access: "admin",
-        planned: true,
+      },
+      {
+        path: "/roles",
+        title: "نقش‌ها",
+        icon: "lock",
+        access: "admin",
+      },
+    ],
+  },
+  {
+    id: "management",
+    icon: "settings",
+    title: "تنظیمات",
+    items: [
+      {
+        path: "/registration-policies",
+        title: "قوانین ثبت‌نام",
+        icon: "document",
+        access: "education",
       },
       {
         path: "/settings",
@@ -162,7 +175,6 @@ export const MENU_GROUPS: MenuGroup[] = [
         title: "مشخصات و سربرگ",
         icon: "document",
         access: "admin",
-        planned: true,
       },
       {
         path: "/audit-log",
@@ -171,18 +183,23 @@ export const MENU_GROUPS: MenuGroup[] = [
         access: "admin",
         planned: true,
       },
-      {
-        path: "/account",
-        title: "حساب و دسترسی‌ها",
-        icon: "settings",
-        access: "all",
-      },
     ],
   },
 ];
 
-export function canOpenMenu(user: User | null, access: MenuAccess) {
-  return !!user && (access === "all" || user[access]);
+export function canOpenMenu(
+  user: User | null,
+  access: MenuAccess,
+  path?: string,
+) {
+  if (!user) return false;
+  if (user.permissions && path !== undefined)
+    return (
+      user.admin ||
+      (user.permissions.includes(path) &&
+        !(path === "/students" && access === "education" && !user.education))
+    );
+  return access === "all" || user[access];
 }
 
 export const PLANNED_PAGES = MENU_GROUPS.flatMap((group) =>

@@ -1,4 +1,7 @@
 import { Switch } from "../shared/switch";
+import { localToInstant } from '../../../shared/class-time.js';
+import { Datepicker } from "../shared/datepicker";
+import { SessionReason, reasonControls } from "../shared/session-reason";
 import {
   SessionStatuses,
   DEFAULT_SESSION_STATUSES,
@@ -21,7 +24,7 @@ import { Field, jalaliToday, toIso, toJalali } from "../shared/ui";
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: "app-session-form",
   standalone: true,
-  imports: [Select2, ReactiveFormsModule, Field],
+  imports: [Select2, ReactiveFormsModule, Field, SessionReason, Datepicker, Switch],
   template: `<section class="card action-panel">
     <h2>{{ editing ? "ویرایش نوبت رزرو" : "رزرو جلسه" }}</h2>
     <form [formGroup]="form" (ngSubmit)="save()">
@@ -44,6 +47,7 @@ import { Field, jalaliToday, toIso, toJalali } from "../shared/ui";
         ><app-field
           ><input
             id="session-date"
+            appDatepicker
             formControlName="day"
             required
             placeholder=" "
@@ -55,7 +59,8 @@ import { Field, jalaliToday, toIso, toJalali } from "../shared/ui";
             formControlName="time"
             required
             type="time"
-          /><label for="session-time">ساعت تهران *</label></app-field
+          /><label for="session-time">ساعت شروع در منطقه انتخابی *</label></app-field
+        ><app-field><input id="session-zone" formControlName="timezone" dir="ltr" /><label for="session-zone">منطقه زمانی IANA *</label></app-field
         ><app-field
           ><input
             id="session-duration"
@@ -77,9 +82,14 @@ import { Field, jalaliToday, toIso, toJalali } from "../shared/ui";
           ><label for="replacement">ارتباط با جلسه قبلی</label></app-field
         >
       </div>
+      @if (selected?.workflow_version !== 3) { <app-session-reason [group]="form" /> }
+      @if ((editing?.group_members?.length || 0) > 1) {
+        <p class="alert alert-warning">این جلسه بین اعضای زیر مشترک است. تغییر زمان برای همه اعمال می‌شود.</p>
+        <p>@for(member of editing!.group_members!;track member.id){<span class="chip">{{member.first_name}} {{member.last_name}}</span>}</p>
+        <app-switch formControlName="confirmGroup" label="اعضای متأثر را بازبینی کردم و تغییر مشترک را تأیید می‌کنم" />
+      }
       <p class="form-text">
-        ورودی ساعت به وقت تهران است؛ با منطقه Asia/Tehran و زمان UTC ذخیره
-        می‌شود. تاریخ نمونه: ۱۴۰۵/۰۷/۲۷
+        ساعت در منطقه زمانی انتخاب‌شده ثبت می‌شود. ساعت تهران و هنرجو در جدول جلسات نمایش داده می‌شود.
       </p>
       @if (error) {
         <p role="alert" class="alert alert-danger">{{ error }}</p>
@@ -104,7 +114,7 @@ export class SessionForm {
     this.editing = a;
     if (a) {
       const parts = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Asia/Tehran",
+        timeZone: a.timezone,
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
@@ -116,12 +126,17 @@ export class SessionForm {
       this.form.patchValue({
         day: toJalali(`${p("year")}-${p("month")}-${p("day")}`),
         time: `${p("hour")}:${p("minute")}`,
+        timezone: a.timezone,
         durationMinutes: a.duration_minutes ? String(a.duration_minutes) : "",
+        reason: a.reason,
+        requestedBy: a.requested_by || a.cancelled_by || "",
+        justified: a.justified == null ? "" : a.justified ? "yes" : "no",
       });
       this.form.controls.termId.disable();
     }
   }
   @Input() terms: Term[] = [];
+  @Input() set replacementFor(value:number){this.form.controls.replacementFor.setValue(value?String(value):'');}
   @Input() set initialTerm(v: number) {
     if (v) this.form.patchValue({ termId: String(v) });
   }
@@ -134,10 +149,14 @@ export class SessionForm {
     day: jalaliToday(),
     time: ["", Validators.required],
     durationMinutes: "",
+    timezone: 'Asia/Tehran',
+    confirmGroup: false,
     replacementFor: "",
+    ...reasonControls(),
   });
   busy = false;
   error = "";
+  get selected() { return this.terms.find(t=>t.id===Number(this.form.controls.termId.value)); }
   get replacements() {
     return (
       this.terms
@@ -157,31 +176,17 @@ export class SessionForm {
     try {
       const v = this.form.getRawValue();
       const day = toIso(v.day);
-      let instant = new Date(day + "T" + v.time + ":00Z");
-      for (let i = 0; i < 2; i++) {
-        const parts = new Intl.DateTimeFormat("en-CA", {
-          timeZone: "Asia/Tehran",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-          hourCycle: "h23",
-        }).formatToParts(instant);
-        const p = (t: string) => parts.find((x) => x.type === t)!.value;
-        const rendered = Date.parse(
-          `${p("year")}-${p("month")}-${p("day")}T${p("hour")}:${p("minute")}:00Z`,
-        );
-        instant = new Date(
-          instant.getTime() +
-            Date.parse(day + "T" + v.time + ":00Z") -
-            rendered,
-        );
-      }
+      const instant = localToInstant(day, v.time, v.timezone);
       const body = {
-        startsAt: instant.toISOString(),
-        timezone: "Asia/Tehran",
-        durationMinutes: v.durationMinutes,
+        confirmGroup:v.confirmGroup,
+        attendanceId:this.editing?.id,
+        groupVersions:this.editing?.group_members?.map(m=>({id:m.id,version:m.version})),
+        reason: v.reason,
+        requestedBy: v.requestedBy,
+        justified: v.justified === "yes",
+        startsAt: instant,
+        timezone: v.timezone,
+        durationMinutes: v.durationMinutes || this.selected?.duration_minutes,
         replacementFor: v.replacementFor,
       };
       if (this.editing)
@@ -204,7 +209,7 @@ export class SessionForm {
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: "app-attendance-form",
   standalone: true,
-  imports: [Switch, Select2, ReactiveFormsModule, Field],
+  imports: [Switch, Select2, ReactiveFormsModule, Field, SessionReason],
   template: `<section class="card action-panel">
     <h2>ثبت وضعیت جلسه شماره {{ attendance.id }}</h2>
     <form [formGroup]="form" (ngSubmit)="save()">
@@ -216,13 +221,13 @@ export class SessionForm {
             }</select
           ><label for="astatus">وضعیت جلسه</label></app-field
         >
-        @if (form.controls.status.value === "absent") {
+        @if ((form.controls.status.value === "absent" && !simplified) || (form.controls.status.value === 'cancelled' && simplified && form.controls.requestedBy.value === 'student')) {
           <div>
             <app-switch
               formControlName="counts"
               onValue="yes"
               offValue="no"
-              label="اثر غیبت بر سهم *"
+              label="کسر سهم جلسه *"
               onText="از سهم ترم کم شود"
               [offText]="
                 form.controls.counts.value === ''
@@ -244,31 +249,21 @@ export class SessionForm {
             }
           </div>
         }
-        @if (form.controls.status.value === "cancelled") {
-          <app-field
-            ><select appSelect2 id="acancel" formControlName="cancelledBy">
-              <option value="">انتخاب کنید</option>
-              <option value="teacher">مدرس</option>
-              <option value="student">هنرجو</option>
-              <option value="academy">آموزشگاه</option>
-              <option value="other">سایر</option></select
-            ><label for="acancel">لغوکننده *</label></app-field
-          >
-        }
-        <app-field>
-          <textarea
-            id="areason"
-            formControlName="reason"
-            placeholder=" "
-          ></textarea
-          ><label for="areason"
-            >دلیل (برای غیبت و کنسلی الزامی)</label
-          ></app-field
-        >
       </div>
+      @if (form.controls.status.value !== "present") {
+        @if (!simplified) { <app-session-reason [group]="form" /> }
+        @else {
+          @if (form.controls.status.value === 'cancelled') {
+            <app-field><select appSelect2 id="cancel-actor" formControlName="requestedBy"><option value="">انتخاب کنید</option><option value="teacher">مدرس</option><option value="student">هنرجو</option><option value="academy">آموزشگاه</option><option value="other">سایر</option></select><label for="cancel-actor">عامل کنسلی *</label></app-field>
+          }
+          @if (form.controls.status.value !== 'reserved') {
+            <app-field><textarea id="attendance-reason" formControlName="reason"></textarea><label for="attendance-reason">توضیحات *</label></app-field>
+          }
+          @if (form.controls.status.value === 'absent') { <p>غیبت یک جلسه محسوب می‌شود و جبرانی ندارد.</p> }
+        }
+      }
       <p class="form-text">
-        حاضر یک جلسه، رزرو و کنسلی صفر جلسه مصرف می‌کنند. تغییرات با سابقه ثبت
-        می‌شوند.
+        رزرو مصرف ندارد. لغو مدرس بدون کسر سهم و نیازمند جبرانی است. تغییرات با سابقه ثبت می‌شوند.
       </p>
       @if (error) {
         <p role="alert" class="alert alert-danger">{{ error }}</p>
@@ -284,6 +279,7 @@ export class SessionForm {
   </section>`,
 })
 export class AttendanceForm {
+  get simplified() { return (this.attendance.workflow_version || 1) >= 3; }
   catalog = inject(SessionStatuses);
   statusOptions = DEFAULT_SESSION_STATUSES;
   @Input() initialStatus: string | null = null;
@@ -296,16 +292,28 @@ export class AttendanceForm {
   form = this.fb.nonNullable.group({
     status: "present",
     counts: "",
-    reason: "",
     cancelledBy: "",
+    ...reasonControls(),
   });
   busy = false;
   error = "";
   async ngOnInit() {
+    const changedStatus =
+      !!this.initialStatus && this.initialStatus !== this.attendance.status;
     this.form.patchValue({
       status: this.initialStatus || this.attendance.status,
-      reason: this.attendance.reason,
+      reason: changedStatus ? "" : this.attendance.reason,
       cancelledBy: this.attendance.cancelled_by,
+      requestedBy: changedStatus
+        ? ""
+        : this.attendance.requested_by || this.attendance.cancelled_by || "",
+      justified: changedStatus
+        ? ""
+        : this.attendance.justified == null
+          ? ""
+          : this.attendance.justified
+            ? "yes"
+            : "no",
       counts:
         this.attendance.status === "absent"
           ? this.attendance.counts
@@ -323,17 +331,27 @@ export class AttendanceForm {
   async save() {
     if (this.busy) return;
     const v = this.form.getRawValue();
-    if (v.status === "absent" && (!v.counts || !v.reason.trim())) {
+    if (
+      !this.simplified && v.status !== "present" &&
+      (!v.reason.trim() || !v.requestedBy || !v.justified)
+    ) {
+      this.error = "شخص درخواست‌کننده، وضعیت دلیل و توضیح را مشخص کنید.";
+      return;
+    }
+    if (v.status === "absent" && ((!this.simplified && !v.counts) || !v.reason.trim())) {
       this.error = "اثر غیبت و دلیل را مشخص کنید.";
       return;
     }
+    if (this.simplified && v.status==='cancelled' && (!v.requestedBy || !v.reason.trim() || (v.requestedBy==='student' && !v.counts))) { this.error='عامل کنسلی، توضیح و تصمیم کسر سهم هنرجو را مشخص کنید.'; return; }
     this.busy = true;
     this.error = "";
     try {
       await this.api.patch(`/attendance/${this.attendance.id}`, {
         ...v,
+        cancelledBy: v.status === "cancelled" ? v.requestedBy : "",
+        justified: v.status === "present" ? undefined : v.justified === "yes",
         version: this.attendance.version,
-        ...(v.status === "absent" ? { counts: v.counts === "yes" } : {}),
+        ...(['absent','cancelled'].includes(v.status) ? { counts: this.simplified && v.status==='absent' ? true : v.counts === "yes" } : {}),
       });
       this.saved.emit();
     } catch (e) {

@@ -89,7 +89,7 @@ export const GRID_LOCALE: Record<string, string> = {
     <div class="resource-grid-heading">
       <div>
         <strong>{{ title }}</strong
-        ><span>جست‌وجو و فیلتر از داخل ستون‌های جدول.</span>
+        ><span>{{ description }}</span>
       </div>
       <span>{{ countText }}</span>
     </div>
@@ -106,6 +106,9 @@ export class DataGrid<T extends { id: number }>
   implements AfterViewInit, OnChanges, OnDestroy
 {
   @Input() title = "";
+  @Input() description = "جست‌وجو و مرتب‌سازی از فیلتر ستون‌ها";
+  @Input() emptyMessage = "رکوردی برای نمایش وجود ندارد";
+  @Input() rowNumbers = true;
   @Input() rows: T[] = [];
   @Input() columns: ColDef<T>[] = [];
   @Input() options: GridOptions<T> = {};
@@ -135,10 +138,12 @@ export class DataGrid<T extends { id: number }>
     this.grid = createGrid<T>(this.element.nativeElement, {
       theme: "legacy",
       rowData: this.options.rowModelType === "infinite" ? undefined : this.rows,
-      columnDefs: [numberColumn, ...this.columns],
+      columnDefs: this.rowNumbers
+        ? [numberColumn, ...this.columns]
+        : this.columns,
       enableRtl: true,
-      localeText: GRID_LOCALE,
-      rowHeight: 56,
+      localeText: { ...GRID_LOCALE, noRowsToShow: this.emptyMessage },
+      rowHeight: 60,
       headerHeight: 52,
       floatingFiltersHeight: 36,
       pagination: true,
@@ -254,6 +259,7 @@ export const statusLabels: Record<string, string> = {
   unpaid: "پرداخت‌نشده",
   partial: "پرداخت جزئی",
   settled: "تسویه‌شده",
+  no_due: "بدون مبلغ قابل دریافت",
 };
 export function statusCell(value: string, note = "", label?: string) {
   const container = document.createElement("div");
@@ -297,15 +303,21 @@ export interface GridAction {
     | "edit"
     | "check"
     | "renew"
+    | "key"
+    | "resetKey"
     | "wallet"
     | "power"
     | "book"
-    | "calendar";
+    | "calendar"
+    | "trash";
   href?: string;
   run?: () => void;
   disabled?: boolean;
 }
 const icons: Record<string, string> = {
+  resetKey:
+    "M11.27 8H22v8h-3v-3h-3v-2h-4.73a5 5 0 1 1 0-3Z M8 9.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0",
+  key: "m21 2-2 2m-7.39 7.39a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78Zm0 0L15.5 7.5M15.5 7.5l3 3L22 7l-3-3",
   book: "M12 5c-3-2-6-2-10-1v15c4-1 7-1 10 1 3-2 6-2 10-1V4c-4-1-7-1-10 1v15",
   calendar:
     "M8 2v4 M16 2v4 M3 10h18 M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2 M12 13v6 M9 16h6",
@@ -315,6 +327,7 @@ const icons: Record<string, string> = {
   renew: "M20 7v5h-5 M4 17v-5h5 M19 12a7 7 0 0 0-12-5 M5 12a7 7 0 0 0 12 5",
   wallet: "M20 8V5H5a3 3 0 0 0 0 6h16v10H5a3 3 0 0 1-3-3V8 M21 14h-5v4h5",
   power: "M12 2v10 M5 5a9 9 0 1 0 14 0",
+  trash: "M4 7h16 M9 7V4h6v3 M6 7l1 14h10l1-14 M10 11v6 M14 11v6",
 };
 export function actionColumn<T>(
   actions: (row: T) => GridAction[],

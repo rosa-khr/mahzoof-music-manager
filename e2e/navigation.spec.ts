@@ -78,9 +78,15 @@ test("compact accordion menus toggle with keyboard, follow routes and expand fro
   await expect(
     nav.getByRole("link", { name: "کارهای امروز", exact: true }),
   ).toBeVisible();
+  const people = nav.getByRole("button", { name: "افراد", exact: true });
+  await people.click();
   await expect(
     nav.getByRole("link", { name: "پرونده هنرجویان", exact: true }),
   ).toBeVisible();
+  await expect(
+    nav.getByRole("link", { name: "مدرسین", exact: true }),
+  ).toBeVisible();
+  await people.click();
   await expect(
     nav.getByRole("button", { name: "آموزش", exact: true }),
   ).toHaveCount(0);

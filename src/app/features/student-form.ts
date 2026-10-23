@@ -9,12 +9,32 @@ import {
   OnDestroy,
   OnInit,
 } from "@angular/core";
-import { FormBuilder, ReactiveFormsModule, Validators } from "@angular/forms";
+import {
+  AbstractControl,
+  FormBuilder,
+  ReactiveFormsModule,
+  ValidationErrors,
+  Validators,
+} from "@angular/forms";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
 import { Api, errorMessage } from "../core/api";
 import { Student, Subject } from "../core/models";
-import { Field, PageHeader } from "../shared/ui";
+import { Field, PageHeader, jalaliToday, toIso } from "../shared/ui";
+import { Datepicker } from "../shared/datepicker";
 import { Icon } from "../shared/icon";
+import {
+  EducationFields,
+  EducationOptions,
+  educationControls,
+  emptyEducationOptions,
+} from "../shared/education-fields";
+
+function contactRequired(control: AbstractControl): ValidationErrors | null {
+  return control.get("phone")?.value?.trim() ||
+    control.get("guardianPhone")?.value?.trim()
+    ? null
+    : { contactRequired: true };
+}
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -27,6 +47,8 @@ import { Icon } from "../shared/icon";
     Field,
     PageHeader,
     Icon,
+    EducationFields,
+    Datepicker,
   ],
   template: `<app-header
       [title]="editing ? 'ویرایش هنرجو' : 'ثبت هنرجو'"
@@ -36,7 +58,7 @@ import { Icon } from "../shared/icon";
         ><app-icon name="chevron" />بازگشت به فهرست</a
       >
     </app-header>
-    <nav
+    @if (editing) { <nav
       class="tabs student-management-tabs"
       role="tablist"
       aria-label="بخش‌های مدیریت هنرجو"
@@ -54,7 +76,7 @@ import { Icon } from "../shared/icon";
           </button>
         }
       }
-    </nav>
+    </nav> }
     @if (loading) {
       <p role="status" class="loading-state">در حال دریافت اطلاعات هنرجو…</p>
     }
@@ -97,6 +119,15 @@ import { Icon } from "../shared/icon";
                   >
                   <app-field
                     ><input
+                      id="el"
+                      formControlName="englishLast"
+                      placeholder=" "
+                      dir="ltr"
+                      maxlength="100"
+                    /><label for="el">نام خانوادگی انگلیسی</label></app-field
+                  >
+                  <app-field
+                    ><input
                       id="ef"
                       formControlName="englishFirst"
                       placeholder=" "
@@ -106,12 +137,13 @@ import { Icon } from "../shared/icon";
                   >
                   <app-field
                     ><input
-                      id="el"
-                      formControlName="englishLast"
+                      id="national-id"
+                      formControlName="nationalId"
                       placeholder=" "
-                      dir="ltr"
-                      maxlength="100"
-                    /><label for="el">نام خانوادگی انگلیسی</label></app-field
+                      maxlength="80"
+                    /><label for="national-id"
+                      >کد ملی یا شناسه خارجی</label
+                    ></app-field
                   >
                   <app-field
                     ><input
@@ -138,17 +170,19 @@ import { Icon } from "../shared/icon";
                       maxlength="30"
                     /><label for="phone">تماس هنرجو</label></app-field
                   >
+                  <app-field
+                    ><select appSelect2 id="contact-owner" formControlName="contactOwner">
+                      <option value="student">هنرجو</option>
+                      <option value="parent">والد یا سرپرست</option>
+                      <option value="other">سایر</option></select
+                    ><label for="contact-owner">صاحب شماره تماس *</label></app-field
+                  >
                 </div>
-              </section>
-              <section class="student-form-section">
-                <app-field>
-                  <textarea
-                    id="student-address"
-                    formControlName="address"
-                    maxlength="2000"
-                  ></textarea
-                  ><label for="student-address">آدرس</label></app-field
-                >
+                @if (form.hasError("contactRequired") && form.touched) {
+                  <p class="text-danger" role="alert">
+                    شماره تماس هنرجو یا سرپرست را وارد کنید.
+                  </p>
+                }
               </section>
               <details
                 class="student-form-accordion"
@@ -189,27 +223,33 @@ import { Icon } from "../shared/icon";
                   >
                 </div>
               </details>
-              @if (api.user()?.admin) {
-                <details
-                  class="student-form-accordion"
-                  [open]="!!form.controls.missingContactReason.value"
+              <details class="student-form-accordion">
+                <summary>اطلاعات تکمیلی <small>اختیاری</small></summary>
+                <div class="form-grid">
+                  <app-field><select appSelect2 id="gender" formControlName="gender"><option value="">ثبت نشده</option><option value="female">زن</option><option value="male">مرد</option><option value="other">سایر</option></select><label for="gender">جنسیت</label></app-field>
+                  <app-field><input id="landline" formControlName="landline" type="tel" dir="ltr" /><label for="landline">تلفن ثابت</label></app-field>
+                  <app-field><select appSelect2 id="country-scope" formControlName="countryScope"><option value="iran">ایران</option><option value="other">سایر کشورها</option></select><label for="country-scope">کشور</label></app-field>
+                  @if (form.controls.countryScope.value === "other") {
+                    <app-field><input id="other-country" formControlName="otherCountry" placeholder=" " maxlength="100" required /><label for="other-country">نام کشور *</label></app-field>
+                  }
+                  <app-field><input id="city" formControlName="city" /><label for="city">شهر</label></app-field>
+                  <app-field><input id="student-timezone" formControlName="timezone" dir="ltr" /><label for="student-timezone">منطقه زمانی هنرجو (IANA)</label></app-field>
+                  <app-field><input id="education-level" formControlName="educationLevel" /><label for="education-level">تحصیلات</label></app-field>
+                  <app-field><select appSelect2 id="acquaintance-method" formControlName="acquaintanceMethod"><option value="">انتخاب کنید</option><option value="instagram">اینستاگرام</option><option value="website">سایت</option><option value="referrer">معرف</option></select><label for="acquaintance-method">شیوه آشنایی با آموزشگاه</label></app-field>
+                  @if (form.controls.acquaintanceMethod.value === "referrer") {
+                    <app-field><input id="referrer-name" formControlName="referrerName" placeholder=" " maxlength="500" required /><label for="referrer-name">نام معرف *</label></app-field>
+                  }
+                </div>
+                <app-field>
+                  <textarea
+                    id="student-address"
+                    formControlName="address"
+                    maxlength="2000"
+                  ></textarea
+                  ><label for="student-address">آدرس</label></app-field
                 >
-                  <summary>ثبت بدون اطلاعات تماس</summary>
-                  <div class="student-reason">
-                    <app-field>
-                      <textarea
-                        id="missing"
-                        formControlName="missingContactReason"
-                        placeholder=" "
-                        maxlength="1000"
-                      ></textarea
-                      ><label for="missing"
-                        >دلیل ثبت بدون تماس (فقط مدیر)</label
-                      ></app-field
-                    >
-                  </div>
-                </details>
-              }
+                <app-field><textarea id="internal-notes" formControlName="internalNotes"></textarea><label for="internal-notes">یادداشت داخلی (چاپ نمی‌شود)</label></app-field>
+              </details>
             </div>
             <div class="student-editor-side">
               <section
@@ -223,9 +263,11 @@ import { Icon } from "../shared/icon";
                   @if (preview) {
                     <img [src]="preview" alt="عکس هنرجو" />
                   } @else {
-                    <app-icon name="users" /><span
-                      >عکس هنرجو هنوز انتخاب نشده است.</span
-                    >
+                    <span
+                      class="student-photo-avatar student-avatar-placeholder"
+                      aria-hidden="true"
+                    ></span>
+                    <span>عکس هنرجو هنوز انتخاب نشده است.</span>
                   }
                 </div>
                 <h2>عکس هنرجو</h2>
@@ -291,33 +333,62 @@ import { Icon } from "../shared/icon";
             </div>
           </fieldset>
         </div>
-        @if (!editing) {
-          <section
-            [hidden]="activeTab !== 'terms'"
-            class="student-form-section"
-          >
-            <h2>اطلاعات ساز و جلسه</h2>
-            <div class="form-grid">
-              @if (!editing) {
-                <app-field
-                  ><select
-                    appSelect2
-                    id="subject"
-                    formControlName="subjectId"
-                    required
-                  >
-                    <option value="">انتخاب کنید</option>
-                    @for (s of subjects; track s.id) {
-                      <option [value]="s.id">{{ s.name }}</option>
-                    }</select
-                  ><label for="subject">واحد آموزشی موردنظر *</label></app-field
-                >
-              }
+        <section class="student-form-section student-education-box">
+          <header>
+            <div>
+              <h2>اطلاعات ساز و مسیر آموزشی</h2>
+              <small>برای هر ساز یک مسیر مستقل ساخته می‌شود؛ پرونده شخصی هنرجو تکرار نمی‌شود.</small>
             </div>
-            <p class="form-text">
-              ترم و جلسات پس از ثبت اطلاعات فردی در همین بخش مدیریت می‌شوند.
-            </p>
-          </section>
+          </header>
+          <div class="instrument-selection-block">
+            <div class="instrument-goal-row">
+              <app-field>
+                <select appSelect2 id="student-instrument" formControlName="instrumentId" (change)="instrumentChanged()">
+                  <option value="">انتخاب کنید</option>
+                  @for (item of educationOptions.instruments; track item.id) {
+                    <option [value]="item.id">{{ item.name }}</option>
+                  }
+                </select>
+                <label for="student-instrument">{{ editing ? "انتخاب یا افزودن ساز" : "ساز" }}</label>
+              </app-field>
+              <app-field><input id="registration-goal" formControlName="registrationGoal" /><label for="registration-goal">هدف ثبت‌نام</label></app-field>
+            </div>
+            @if (editing) {
+              @if (student?.enrollments?.length) {
+                <div class="student-current-instruments">
+                  <small>سازهای ثبت‌شده</small>
+                  @for (path of student!.enrollments; track path.id) {
+                    <span>{{ path.subject }}</span>
+                  }
+                </div>
+              }
+              <p class="form-text">انتخاب ساز جدید، یک مسیر آموزشی مستقل به همین پرونده اضافه می‌کند.</p>
+            } @else {
+              <app-education-fields
+                [group]="form"
+                [options]="educationOptions"
+                [paymentRequired]="false"
+                [selectionRequired]="false"
+                [showInstrument]="false"
+              />
+            }
+          </div>
+          @if (!editing) {
+            <div class="form-grid">
+              <app-field><select appSelect2 id="student-structure" formControlName="structure"><option value="private">خصوصی</option><option value="group">گروهی</option></select><label for="student-structure">نوع کلاس</label></app-field>
+              <app-field><select appSelect2 id="audience-group" formControlName="audienceGroup"><option value="">تعیین نشده</option><option value="child">خردسال</option><option value="teen">نوجوان</option><option value="adult">بزرگسال</option></select><label for="audience-group">گروه آموزشی</label></app-field>
+              <app-field><input id="registration-date" appDatepicker formControlName="registrationDate" dir="ltr" /><label for="registration-date">تاریخ ثبت‌نام</label></app-field>
+            </div>
+          }
+          <div class="education-notes-grid">
+            <app-field><textarea id="artistic-history" formControlName="artisticHistory"></textarea><label for="artistic-history">پیشینه هنری</label></app-field>
+            <app-field><textarea id="interview-notes" formControlName="interviewNotes"></textarea><label for="interview-notes">مصاحبه</label></app-field>
+          </div>
+          @if (!editing) {
+            <p class="form-text">انتخاب ساز در تشکیل اولیه پرونده اختیاری است؛ ترم و پرداخت نیز اجباری نیستند.</p>
+          }
+        </section>
+        @if (!editing) {
           @if (activeTab === "attendance" || activeTab === "finance") {
             <p class="empty">
               ابتدا اطلاعات فردی و واحد آموزشی را ثبت کنید؛ سپس جلسات، حضور و
@@ -328,19 +399,28 @@ import { Icon } from "../shared/icon";
         @if (form.invalid && form.touched) {
           <p class="text-danger">فیلدهای الزامی را تکمیل کنید.</p>
         }
+        @if (duplicates.length) {
+          <section class="alert alert-warning"><p>پرونده با همین نام وجود دارد. برای ثبت‌نام جدیدِ همان هنرجو، پرونده موجود را باز کنید.</p>
+            @for(item of duplicates;track item.id){<a [routerLink]="['/students',item.id]">{{item.code}} • {{item.first_name}} {{item.last_name}}</a>}
+            <app-switch formControlName="confirmDistinct" label="بررسی کردم؛ این هنرجو شخص دیگری است" />
+          </section>
+        }
         <footer class="student-editor-actions">
           <span>فیلدهای ستاره‌دار الزامی هستند.</span
           ><a
             class="btn btn-light"
             [routerLink]="editing ? ['/students', student?.id] : ['/students']"
             >انصراف</a
-          ><button class="btn btn-primary" [disabled]="busy || !!photoError">
+          >@if (!editing) {
+            <button type="button" class="btn btn-light" [disabled]="busy || !!photoError" (click)="save(true)">ذخیره و چاپ پرونده</button>
+          }
+          <button class="btn btn-primary" [disabled]="busy || !!photoError">
             <app-icon name="save" />{{
               busy
                 ? "در حال ذخیره…"
                 : editing
                   ? "ذخیره تغییرات"
-                  : "ثبت و باز کردن پرونده"
+                  : "ذخیره"
             }}
           </button>
         </footer>
@@ -369,6 +449,7 @@ export class StudentForm implements OnInit, OnDestroy {
   }
   student: Student | null = null;
   subjects: Subject[] = [];
+  educationOptions = emptyEducationOptions();
   loading = false;
   busy = false;
   error = "";
@@ -378,36 +459,81 @@ export class StudentForm implements OnInit, OnDestroy {
   removePhoto = false;
   dragging = false;
   objectUrl = "";
+  requestKey = crypto.randomUUID();
+  private submitted = '';
+  duplicates: Student[]=[];
   form = this.fb.nonNullable.group({
     firstName: ["", Validators.required],
     lastName: ["", Validators.required],
     englishFirst: "",
     englishLast: "",
     phone: "",
+    contactOwner: "student",
     age: [
       "",
       [Validators.min(0), Validators.max(130), Validators.pattern(/^\d*$/)],
     ],
     address: ["", Validators.maxLength(2000)],
-    subjectId: ["", Validators.required],
+    gender: "",
+    nationalId: "",
+    landline: "",
+    countryScope: "iran",
+    otherCountry: "",
+    city: "",
+    timezone: 'Asia/Tehran',
+    educationLevel: "",
+    artisticHistory: "",
+    acquaintanceMethod: "",
+    referrerName: "",
+    registrationGoal: "",
+    interviewNotes: "",
+    internalNotes: "",
+    audienceGroup: "",
+    registrationDate: jalaliToday(),
+    structure: "private",
+    subjectId: "",
+    ...educationControls(),
     guardianName: "",
     guardianPhone: "",
     guardianRelationship: "سرپرست",
     history: "unknown",
     missingContactReason: "",
     status: "active",
+    confirmDistinct: false,
   });
   setArchived(archived: boolean) {
     this.form.controls.status.setValue(archived ? "archived" : "inactive");
     this.form.controls.status.markAsDirty();
   }
+  instrumentChanged() {
+    const instrumentId = Number(this.form.controls.instrumentId.value);
+    const defaultTeacher = this.educationOptions.instructors.find(
+      (item) =>
+        item.instrument_ids.includes(instrumentId) &&
+        item.name.replace(/\s+/g, " ").trim() === "شهرام محذوف",
+    );
+    this.form.controls.instructorId.setValue(
+      defaultTeacher ? String(defaultTeacher.id) : "",
+    );
+  }
   async ngOnInit() {
     this.loading = true;
+    this.form.controls.countryScope.valueChanges.subscribe(() =>
+      this.updateCountryValidation(),
+    );
+    this.form.controls.acquaintanceMethod.valueChanges.subscribe(() =>
+      this.updateReferrerValidation(),
+    );
+    this.updateCountryValidation();
+    this.updateReferrerValidation();
     if (this.editing) {
       this.form.controls.subjectId.clearValidators();
       this.form.controls.subjectId.updateValueAndValidity();
     }
     try {
+      this.educationOptions = await this.api.get<EducationOptions>(
+        "/students/education-options",
+      );
       if (this.editing) {
         this.student = await this.api.get<Student>(
           "/students/" + this.route.snapshot.paramMap.get("id"),
@@ -420,8 +546,27 @@ export class StudentForm implements OnInit, OnDestroy {
           englishFirst: s.english_first,
           englishLast: s.english_last,
           phone: s.phone,
+          instrumentId: String(s.enrollments[0]?.instrument_id || ""),
+          contactOwner: s.contact_owner || "student",
           age: s.age == null ? "" : String(s.age),
           address: s.address || "",
+          gender: s.gender || "",
+          nationalId: s.national_id || "",
+          landline: s.landline || "",
+          countryScope:
+            !s.country || s.country.trim() === "ایران" ? "iran" : "other",
+          otherCountry:
+            !s.country || s.country.trim() === "ایران" ? "" : s.country,
+          city: s.city || "",
+          timezone: s.timezone,
+          educationLevel: s.education_level || "",
+          artisticHistory: s.artistic_history || "",
+          acquaintanceMethod: this.acquaintanceMethod(s.referral_source || ""),
+          referrerName: this.referrerName(s.referral_source || ""),
+          registrationGoal: s.registration_goal || "",
+          interviewNotes: s.interview_notes || "",
+          internalNotes: s.internal_notes || "",
+          audienceGroup: s.audience_group || "",
           guardianName: g?.name || "",
           guardianPhone: g?.phone || "",
           guardianRelationship: g?.relationship || "سرپرست",
@@ -429,14 +574,49 @@ export class StudentForm implements OnInit, OnDestroy {
           missingContactReason: s.missing_contact_reason,
           status: s.status,
         });
+        if (s.phone || g?.phone) this.form.addValidators(contactRequired);
         this.preview = s.photo_url || "";
-      } else this.subjects = await this.api.get<Subject[]>("/subjects");
+      } else {
+        this.form.addValidators(contactRequired);
+      }
     } catch (e) {
       this.error = errorMessage(e);
     } finally {
       this.loading = false;
       this.cdr.markForCheck();
     }
+  }
+  updateCountryValidation() {
+    const control = this.form.controls.otherCountry;
+    control.setValidators(
+      this.form.controls.countryScope.value === "other"
+        ? [Validators.required, Validators.maxLength(100)]
+        : [Validators.maxLength(100)],
+    );
+    control.updateValueAndValidity({ emitEvent: false });
+  }
+  updateReferrerValidation() {
+    const control = this.form.controls.referrerName;
+    control.setValidators(
+      this.form.controls.acquaintanceMethod.value === "referrer"
+        ? [Validators.required, Validators.maxLength(500)]
+        : [Validators.maxLength(500)],
+    );
+    control.updateValueAndValidity({ emitEvent: false });
+  }
+  acquaintanceMethod(value: string) {
+    const normalized = value.trim();
+    if (normalized === "اینستاگرام") return "instagram";
+    if (normalized === "سایت") return "website";
+    return normalized ? "referrer" : "";
+  }
+  referrerName(value: string) {
+    const normalized = value.trim();
+    return normalized.startsWith("معرف:")
+      ? normalized.slice("معرف:".length).trim()
+      : ["اینستاگرام", "سایت"].includes(normalized)
+        ? ""
+        : normalized;
   }
   onFile(event: Event) {
     const input = event.target as HTMLInputElement;
@@ -486,10 +666,19 @@ export class StudentForm implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.releasePreview();
   }
-  async save() {
+  async save(printAfter = false) {
     this.form.markAllAsTouched();
     if (this.form.invalid || this.busy || this.photoError) {
-      if (!this.editing && this.form.controls.subjectId.invalid)
+      if (
+        !this.editing &&
+        [
+          "instrumentId",
+          "instructorId",
+          "teachingTypeId",
+          "academyId",
+          "paymentMethodId",
+        ].some((key) => this.form.get(key)?.invalid)
+      )
         this.activeTab = "terms";
       else this.activeTab = "info";
       return;
@@ -497,26 +686,46 @@ export class StudentForm implements OnInit, OnDestroy {
     this.busy = true;
     this.error = "";
     try {
+      if(!this.editing&&!this.submitted){const v=this.form.getRawValue();this.duplicates=(await this.api.get<{items:Student[]}>(`/students/duplicate-options?${new URLSearchParams({firstName:v.firstName,lastName:v.lastName})}`)).items;if(this.duplicates.length&&!v.confirmDistinct){this.error='پرونده مشابه را بررسی کنید.';return;}}
       const data = {
         ...this.form.getRawValue(),
+        country:
+          this.form.controls.countryScope.value === "iran"
+            ? "ایران"
+            : this.form.controls.otherCountry.value.trim(),
+        referralSource:
+          this.form.controls.acquaintanceMethod.value === "instagram"
+            ? "اینستاگرام"
+            : this.form.controls.acquaintanceMethod.value === "website"
+              ? "سایت"
+              : this.form.controls.acquaintanceMethod.value === "referrer"
+                ? `معرف: ${this.form.controls.referrerName.value.trim()}`
+                : "",
+        registrationDate: toIso(this.form.controls.registrationDate.value),
         removePhoto: this.removePhoto,
         ...(this.student
           ? {
               version: this.student.version,
               guardianId: this.student.guardians[0]?.id,
-              timezone: this.student.timezone,
             }
           : {}),
       };
       const body = new FormData();
       body.append("data", JSON.stringify(data));
       if (this.file) body.append("photo", this.file);
+      const fingerprint = JSON.stringify(data) + (this.file ? `${this.file.name}:${this.file.size}:${this.file.lastModified}` : '');
+      if (!this.editing && this.submitted && this.submitted !== fingerprint)
+        throw Error('نتیجه درخواست قبلی مشخص نیست؛ ابتدا فهرست هنرجویان را بررسی کنید یا همان اطلاعات را دوباره ارسال کنید.');
+      this.submitted = fingerprint;
       const saved = this.editing
         ? await this.api.patch<Student>("/students/" + this.student!.id, body)
-        : await this.api.post<Student>("/students", body);
-      await this.router.navigate(["/students", saved.id]);
+        : await this.api.post<Student>("/students", body, this.requestKey);
+      await this.router.navigate(
+        printAfter ? ["/students", saved.id, "print"] : ["/students", saved.id],
+      );
     } catch (e) {
-      this.error = errorMessage(e);
+      this.error = e instanceof Error && !('error' in e) ? e.message : errorMessage(e);
+      if ((e as {status?:number}).status && (e as {status:number}).status < 500 && (e as {status:number}).status !== 409) this.submitted = '';
     } finally {
       this.busy = false;
       this.cdr.markForCheck();

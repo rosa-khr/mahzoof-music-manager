@@ -121,7 +121,7 @@ export function studentGrid(db, query) {
   return {
     items: all(
       db,
-      `SELECT id,code,first_name,last_name,phone,status,(SELECT revision FROM student_photos WHERE student_id=students.id) photo_revision FROM students ${where} ORDER BY ${order.join(",")} LIMIT ? OFFSET ?`,
+      `SELECT id,code,first_name,last_name,phone,status,version,(SELECT revision FROM student_photos WHERE student_id=students.id) photo_revision FROM students ${where} ORDER BY ${order.join(",")} LIMIT ? OFFSET ?`,
       ...args,
       limit,
       offset,

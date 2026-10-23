@@ -41,6 +41,89 @@ after(() => {
   server.close();
   db.close();
 });
+test("payment methods validate installments, free tuition, currencies, versions and menu permissions", async () => {
+  const body = {
+    name: "سه قسط ریالی",
+    settlementType: "installment",
+    installmentCount: "۳",
+    paymentCurrency: "rial",
+  };
+  let r = await call("/payment-methods", { method: "POST", body });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  assert.equal(r.body.installment_count, 3);
+  assert.equal(r.body.payment_currency, "rial");
+  const id = r.body.id;
+  for (const count of [null, "", 1, 2.5, "abc"]) {
+    r = await call("/payment-methods", {
+      method: "POST",
+      body: { ...body, installmentCount: count },
+    });
+    assert.equal(r.status, 422);
+  }
+  r = await call(`/payment-methods/${id}`, {
+    method: "PATCH",
+    body: { ...body, settlementType: "free", notes: "", version: 1 },
+  });
+  assert.equal(r.status, 422);
+  r = await call(`/payment-methods/${id}`, {
+    method: "PATCH",
+    body: {
+      ...body,
+      settlementType: "free",
+      notes: "بورسیه آموزشی",
+      version: 1,
+    },
+  });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.installment_count, null);
+  assert.equal(r.body.payment_currency, null);
+  r = await call(`/payment-methods/${id}`, {
+    method: "PATCH",
+    body: { ...body, version: 1 },
+  });
+  assert.equal(r.status, 409);
+  r = await call("/payment-methods", {
+    method: "POST",
+    body: {
+      name: "یکجا ارزی",
+      settlementType: "single",
+      paymentCurrency: "foreign",
+    },
+    user: accountant,
+  });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  assert.equal(r.body.payment_currency, "foreign");
+  const foreignId = r.body.id;
+  for (const [path, method] of [
+    ["/payment-methods", "GET"],
+    ["/payment-methods", "POST"],
+    [`/payment-methods/${id}`, "GET"],
+    [`/payment-methods/${id}`, "PATCH"],
+  ]) {
+    r = await call(path, {
+      method,
+      body: method === "GET" ? undefined : body,
+      user: secretary,
+    });
+    assert.equal(r.status, 403);
+  }
+  r = await call(
+    "/payment-methods?filterModel=" +
+      encodeURIComponent(
+        JSON.stringify({
+          payment_currency: {
+            filterType: "text",
+            type: "equals",
+            filter: "ارزی",
+          },
+        }),
+      ),
+  );
+  assert.deepEqual(
+    r.body.items.map((row) => row.id),
+    [foreignId],
+  );
+});
 for (const resource of ["teaching-types", "instructors", "instruments"]) {
   test(`${resource}: real create, read, versioned edit and deactivate without deleting`, async () => {
     const b = {
@@ -242,6 +325,45 @@ test("instrument English name persists, supports grid filters, legacy edits and 
     (await call("/teaching-types")).body.items[0].english_name,
     undefined,
   );
+});
+
+test("instructor profile fields and teaching instruments persist and filter in the grid", async () => {
+  const instrument = await call("/instruments", {
+    method: "POST",
+    body: { name: "ساز تخصصی پرونده مدرس" },
+  });
+  assert.equal(instrument.status, 201);
+  const created = await call("/instructors", {
+    method: "POST",
+    body: {
+      firstName: "آرمان",
+      lastName: "مدرس",
+      phone: "+989121112233",
+      notes: "توضیحات تخصصی",
+      instrumentIds: [instrument.body.id],
+    },
+  });
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  assert.equal(created.body.name, "آرمان مدرس");
+  assert.equal(created.body.first_name, "آرمان");
+  assert.equal(created.body.last_name, "مدرس");
+  assert.deepEqual(created.body.instrument_ids, [instrument.body.id]);
+  assert.equal(created.body.instrument_names, "ساز تخصصی پرونده مدرس");
+
+  const filtered = await call(
+    "/instructors?" +
+      new URLSearchParams({
+        filterModel: JSON.stringify({
+          instrument_names: {
+            filterType: "text",
+            type: "contains",
+            filter: "تخصصی پرونده",
+          },
+        }),
+      }),
+  );
+  assert.equal(filtered.status, 200);
+  assert.ok(filtered.body.items.some((item) => item.id === created.body.id));
 });
 
 test("session statuses: four persisted system codes, editable labels, grid filters and protected semantics", async () => {

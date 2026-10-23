@@ -14,18 +14,26 @@ import {
   NavigationEnd,
 } from "@angular/router";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
-import { MENU_GROUPS, canOpenMenu } from "./core/navigation";
+import {
+  MENU_GROUPS,
+  canOpenMenu,
+  MenuGroup,
+  MenuItem,
+} from "./core/navigation";
 import { Icon } from "./shared/icon";
+import { ToastHost } from "./shared/toast";
 import { Api, errorMessage } from "./core/api";
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: "app-root",
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, Icon],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, Icon, ToastHost],
   host: {
     "(document:keydown.escape)": "closeMenu()",
     "(window:resize)": "cdr.markForCheck()",
   },
-  template: `@if (api.user(); as user) {
+  template: `<app-toast-host />
+    @if (api.user(); as user) {
+      <a class="skip-link" href="#main-content">رفتن به محتوای صفحه</a>
       <div class="app-layout" [class.sidebar-collapsed]="collapsed">
         @if (menu) {
           <button
@@ -99,11 +107,33 @@ import { Api, errorMessage } from "./core/api";
                   [hidden]="!group.direct && !groupOpen(group.id)"
                 >
                   @for (item of group.items; track item.path) {
+                    @if (item.section && firstInSection(group, item)) {
+                      <button
+                        type="button"
+                        class="nav-group-toggle nav-nested-toggle"
+                        [attr.aria-label]="item.section"
+                        [attr.aria-expanded]="usersSectionOpen"
+                        (click)="usersSectionOpen = !usersSectionOpen"
+                      >
+                        <app-icon name="users" /><span class="sidebar-label">{{
+                          item.section
+                        }}</span
+                        ><app-icon
+                          class="nav-group-chevron sidebar-label"
+                          name="chevron"
+                        />
+                      </button>
+                    }
                     <a
+                      [hidden]="!!item.section && !usersSectionOpen"
+                      [class.nav-nested-link]="!!item.section"
                       [routerLink]="item.path"
                       [routerLinkActiveOptions]="{
                         paths:
                           item.path === '/students' ||
+                          item.path === '/users' ||
+                          item.path === '/roles' ||
+                          item.path === '/subjects' ||
                           item.path.startsWith('/base-data/')
                             ? 'subset'
                             : 'exact',
@@ -148,13 +178,21 @@ import { Api, errorMessage } from "./core/api";
               ><span class="topbar-section">پنل کارکنان</span>
             </div>
             <div class="user-menu">
-              <span class="user-avatar">{{
-                user.username.slice(0, 1).toUpperCase()
-              }}</span>
-              <div class="user-details">
-                <b dir="auto">{{ user.username }}</b
-                ><small>{{ roles[user.role] || "کاربر آموزشگاه" }}</small>
-              </div>
+              <a
+                class="user-account"
+                routerLink="/account"
+                aria-label="حساب شخصی"
+              >
+                <span class="user-avatar">{{
+                  user.username.slice(0, 1).toUpperCase()
+                }}</span>
+                <div class="user-details">
+                  <b dir="auto">{{ user.username }}</b
+                  ><small>{{
+                    roles[user.role] || user.roleName || "کاربر آموزشگاه"
+                  }}</small>
+                </div></a
+              >
               <button
                 class="icon-button"
                 (click)="logout()"
@@ -190,9 +228,13 @@ export class App implements OnInit {
     return MENU_GROUPS.map((group) => ({
       ...group,
       items: group.items.filter((item) =>
-        canOpenMenu(this.api.user(), item.access),
+        canOpenMenu(this.api.user(), item.access, item.path),
       ),
     })).filter((group) => group.items.length);
+  }
+  usersSectionOpen = false;
+  firstInSection(group: MenuGroup, item: MenuItem) {
+    return group.items.find((i) => i.section === item.section) === item;
   }
   menu = false;
   collapsed = false;
@@ -230,6 +272,7 @@ export class App implements OnInit {
     const path = this.router.url.split(/[?#]/)[0];
     if (path === this.activePath) return;
     this.activePath = path;
+    this.usersSectionOpen = /^\/(users|roles)(\/|$)/.test(path);
     this.expandedGroup =
       MENU_GROUPS.find(
         (group) =>

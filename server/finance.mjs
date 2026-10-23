@@ -40,6 +40,7 @@ export function installFinance(app, db) {
         invoice && invoice.student_id === studentId,
         "صورتحساب متعلق به این هنرجو نیست",
       );
+      assert(invoice.settlement_flow !== 'full', 'برای این ترم از دریافت کامل شهریه استفاده کنید');
       const currency = choice(b.currency, ["TOMAN", "USD"], "ارز");
       assert(invoice.currency === currency, "ارز صورتحساب و دریافت یکسان نیست");
       const amount = money(b.amount, currency);

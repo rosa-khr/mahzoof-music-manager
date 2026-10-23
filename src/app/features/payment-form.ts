@@ -13,13 +13,15 @@ import { ReactiveFormsModule, FormBuilder, Validators } from "@angular/forms";
 import { Api, errorMessage } from "../core/api";
 import { Term } from "../core/models";
 import { Field, Money, jalaliToday, toIso } from "../shared/ui";
+import { Datepicker } from "../shared/datepicker";
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: "app-payment-form",
   standalone: true,
-  imports: [Select2, ReactiveFormsModule, Field, Money],
+  imports: [Select2, ReactiveFormsModule, Field, Money, Datepicker],
   template: `<section class="card action-panel">
-    <h2>ثبت دریافت دستی شهریه</h2>
+    <h2>ثبت دریافت کامل شهریه</h2>
+    @if (createdPaymentId) { <p class="alert alert-success">دریافت شهریه در سرور ثبت شد. بارگذاری رسید انجام نشده است؛ می‌توانید دوباره تلاش کنید یا بدون فایل ادامه دهید.</p> }
     <form [formGroup]="form" (ngSubmit)="save()">
       <div class="form-grid">
         <app-field
@@ -32,10 +34,12 @@ import { Field, Money, jalaliToday, toIso } from "../shared/ui";
           >
             <option value="">انتخاب کنید</option>
             @for (t of terms; track t.id) {
-              <option [value]="t.id">
+              @if (t.invoice && t.invoice.settlement_type !== "free") {
+                <option [value]="t.id" [disabled]="t.invoice.financial_status !== 'unpaid'">
                 {{ t.subject }} • ترم {{ t.number }} • مانده
-                {{ t.invoice?.balance_minor | money: t.invoice?.currency }}
-              </option>
+                {{ t.invoice.balance_minor | money: t.invoice.currency }}
+                </option>
+              }
             }</select
           ><label for="pay-term">ترم و صورتحساب مقصد *</label></app-field
         ><app-field
@@ -46,10 +50,12 @@ import { Field, Money, jalaliToday, toIso } from "../shared/ui";
             inputmode="decimal"
             placeholder=" "
             dir="ltr"
+            readonly
           /><label for="pay-amount">مبلغ دریافت در ارز ترم *</label></app-field
         ><app-field
           ><input
             id="received"
+            appDatepicker
             formControlName="receivedOn"
             required
             placeholder=" "
@@ -89,17 +95,17 @@ import { Field, Money, jalaliToday, toIso } from "../shared/ui";
           ><label for="pnotes">توضیحات دریافت</label></app-field
         >
       </div>
+      <label>رسید اختیاری<input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" (change)="receiptFile = $any($event.target).files?.[0] || null" /></label>
       <p class="form-text">
-        ارز: {{ selected?.invoice?.currency === "USD" ? "دلار" : "تومان" }}.
-        اضافه‌دریافت، اعتبار تخصیص‌نیافته همین هنرجو و ارز می‌شود. تاریخ:
-        ۱۴۰۵/۰۷/۲۷
+        مبلغ نهایی پس از تخفیف فقط‌خواندنی است. ثبت موفق سرور، همان ترم را
+        کامل تسویه می‌کند و دریافت دوم پذیرفته نمی‌شود.
       </p>
       @if (error) {
         <p role="alert" class="alert alert-danger">{{ error }}</p>
       }
       <div class="actions">
         <button class="btn btn-primary" [disabled]="busy">
-          {{ busy ? "در حال ثبت…" : "تأیید و ثبت دریافت" }}</button
+          {{ busy ? "در حال ثبت…" : "ثبت دریافت کامل شهریه" }}</button
         ><button
           type="button"
           class="btn btn-light"
@@ -108,6 +114,7 @@ import { Field, Money, jalaliToday, toIso } from "../shared/ui";
         >
           انصراف
         </button>
+        @if (createdPaymentId) { <button type="button" class="btn btn-light" (click)="saved.emit()">ادامه بدون فایل رسید</button> }
       </div>
     </form>
   </section>`,
@@ -135,6 +142,8 @@ export class PaymentForm implements OnInit {
   error = "";
   key = crypto.randomUUID();
   submittedBody: unknown = null;
+  receiptFile:File|null=null;
+  createdPaymentId=0;
   get selected() {
     return this.terms.find(
       (t) => t.id === Number(this.form.controls.termId.value),
@@ -143,6 +152,7 @@ export class PaymentForm implements OnInit {
   async ngOnInit() {
     if (this.initialTerm)
       this.form.patchValue({ termId: String(this.initialTerm) });
+    this.changed();
     try {
       this.banks = await this.api.get<typeof this.banks>("/bank-accounts");
     } catch (e) {
@@ -153,6 +163,14 @@ export class PaymentForm implements OnInit {
   }
   changed() {
     this.form.controls.bankAccountId.setValue("");
+    const invoice = this.selected?.invoice;
+    if (invoice)
+      this.form.controls.amount.setValue(
+        String(
+          invoice.total_minor /
+            (invoice.currency === "USD" ? 100 : 1),
+        ),
+      );
   }
   async save() {
     if (this.form.invalid || this.busy || !this.selected?.invoice) {
@@ -178,7 +196,8 @@ export class PaymentForm implements OnInit {
         return;
       }
       this.submittedBody = fingerprint;
-      await this.api.post("/payments", body, this.key);
+      if(!this.createdPaymentId){const result=await this.api.post<{id:number}>("/full-tuition-payments", body, this.key);this.createdPaymentId=result.id;}
+      if(this.receiptFile){const upload=new FormData();upload.append('file',this.receiptFile);upload.append('kind','receipt');upload.append('paymentId',String(this.createdPaymentId));upload.append('termId',String(this.selected!.id));await this.api.post(`/students/${this.studentId}/documents`,upload);}
       this.saved.emit();
     } catch (e) {
       this.error =

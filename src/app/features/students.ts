@@ -9,12 +9,7 @@ import { ActivatedRoute, Router, RouterLink } from "@angular/router";
 import { Api, errorMessage } from "../core/api";
 import { StudentRow } from "../core/models";
 import { Icon } from "../shared/icon";
-import {
-  DataGrid,
-  actionColumn,
-  statusColumn,
-  GridAction,
-} from "../shared/data-grid";
+import { DataGrid, actionColumn, statusColumn } from "../shared/data-grid";
 import {
   ColDef,
   GridApi,
@@ -22,13 +17,15 @@ import {
   IGetRowsParams,
 } from "ag-grid-community";
 import { PageHeader } from "../shared/ui";
+import { confirmDelete } from "../shared/confirm";
+import { Toasts } from "../shared/toast";
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [RouterLink, PageHeader, Icon, DataGrid],
   template: `<app-header
       title="پرونده هنرجویان"
-      subtitle="جست‌وجو، ثبت سریع و ادامه مسیر آموزش"
+      subtitle="مدیریت پرونده، ترم‌ها و امور مالی هنرجویان"
     >
       @if (api.user()?.education) {
         <a class="btn btn-primary" routerLink="/students/new">
@@ -44,6 +41,8 @@ import { PageHeader } from "../shared/ui";
     }
     <app-data-grid
       title="فهرست هنرجویان"
+      description="پرونده‌های آموزشگاه و دسترسی سریع به عملیات هر هنرجو"
+      emptyMessage="هنرجویی با این مشخصات پیدا نشد"
       [columns]="columns"
       [options]="gridOptions"
       [total]="total"
@@ -57,6 +56,8 @@ export class Students implements OnInit {
   api = inject(Api);
   route = inject(ActivatedRoute);
   router = inject(Router);
+  toasts = inject(Toasts);
+  deleting = new Set<number>();
   columns: ColDef<StudentRow>[] = [
     {
       colId: "search",
@@ -76,8 +77,14 @@ export class Students implements OnInit {
           image.alt = "";
           image.loading = "lazy";
           row.append(image);
+        } else {
+          const avatar = document.createElement("span");
+          avatar.className = "grid-student-avatar student-avatar-placeholder";
+          avatar.setAttribute("aria-hidden", "true");
+          row.append(avatar);
         }
         const name = document.createElement("span");
+        name.className = "grid-student-name";
         name.textContent = p.data.first_name + " " + p.data.last_name;
         row.append(name);
         return row;
@@ -105,6 +112,12 @@ export class Students implements OnInit {
           href: "/students/" + s.id,
           run: () => void this.router.navigate(["/students", s.id]),
         },
+        {
+          label: "چاپ پرونده",
+          icon: "book",
+          href: "/students/" + s.id + "/print",
+          run: () => void this.router.navigate(["/students", s.id, "print"]),
+        },
         ...(this.api.user()?.education
           ? [
               {
@@ -114,32 +127,46 @@ export class Students implements OnInit {
                 run: () =>
                   void this.router.navigate(["/students", s.id, "edit"]),
               },
-              this.studentAction(s, "term", "ترم جدید", "book"),
-              this.studentAction(s, "session", "ثبت جلسه", "calendar"),
             ]
           : []),
-        ...(this.api.user()?.finance
-          ? [this.studentAction(s, "payment", "ثبت پرداخت", "wallet")]
+        ...(this.api.user()?.admin
+          ? [
+              {
+                label: "حذف هنرجو",
+                icon: "trash" as const,
+                disabled: this.deleting.has(s.id),
+                run: () => void this.remove(s),
+              },
+            ]
           : []),
       ],
-      this.api.user()?.education && this.api.user()?.finance ? 190 : 165,
+      this.api.user()?.admin ? 165 : 135,
     ),
   ];
-  studentAction(
-    s: StudentRow,
-    action: string,
-    label: string,
-    icon: GridAction["icon"],
-  ): GridAction {
-    return {
-      label,
-      icon,
-      href: `/students/${s.id}?action=${action}`,
-      run: () =>
-        void this.router.navigate(["/students", s.id], {
-          queryParams: { action },
-        }),
-    };
+  async remove(student: StudentRow) {
+    const name = `${student.first_name} ${student.last_name}`.trim();
+    if (
+      !(await confirmDelete(
+        "حذف هنرجو",
+        `آیا از حذف «${name}» مطمئن هستید؟ این عملیات قابل بازگشت نیست.`,
+      ))
+    )
+      return;
+    this.deleting.add(student.id);
+    this.grid?.refreshCells({ force: true });
+    try {
+      await this.api.delete(
+        `/students/${student.id}?version=${student.version}`,
+      );
+      this.toasts.show("هنرجو با موفقیت حذف شد", "success");
+      this.load();
+    } catch (error) {
+      this.toasts.show(errorMessage(error), "error");
+    } finally {
+      this.deleting.delete(student.id);
+      this.grid?.refreshCells({ force: true });
+      this.cdr.markForCheck();
+    }
   }
   grid?: GridApi<StudentRow>;
   initialized = false;
@@ -147,6 +174,11 @@ export class Students implements OnInit {
   restoring = true;
   pendingPage: number | null = null;
   gridOptions: GridOptions<StudentRow> = {
+    // Five pinned actions must not consume most of a phone's reading viewport.
+    suppressColumnVirtualisation: true,
+    onGridSizeChanged: () => {
+      if (this.grid) this.resizeActions(this.grid);
+    },
     rowModelType: "infinite",
     cacheBlockSize: 100,
     maxBlocksInCache: 3,
@@ -162,6 +194,7 @@ export class Students implements OnInit {
   };
   onGridReady(grid: GridApi<StudentRow>) {
     this.grid = grid;
+    this.resizeActions(grid);
     const p = this.route.snapshot.queryParamMap;
     grid.setGridOption("paginationPageSize", Number(p.get("size")) || 10);
     try {
@@ -207,6 +240,16 @@ export class Students implements OnInit {
     if (this.initialized) this.load();
   }
   total = 0;
+  resizeActions(grid: GridApi<StudentRow>) {
+    const pinned = window.matchMedia("(max-width: 650px)").matches
+      ? null
+      : "left";
+    if (
+      (grid.getColumnState().find((c) => c.colId === "actions")?.pinned ||
+        null) !== pinned
+    )
+      grid.applyColumnState({ state: [{ colId: "actions", pinned }] });
+  }
   page = 1;
   loading = false;
   error = "";

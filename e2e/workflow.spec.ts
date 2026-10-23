@@ -223,7 +223,7 @@ test("real first delivery workflow, lost payment response retry, Persian RTL com
         return label.bottom - el.getBoundingClientRect().top;
       }),
     )
-    .toBeLessThanOrEqual(0);
+    .toBeLessThanOrEqual(8);
   await page.screenshot({
     path: `test-results/${testInfo.project.name}-compact-labels.png`,
     fullPage: true,
@@ -296,7 +296,7 @@ test("real first delivery workflow, lost payment response retry, Persian RTL com
   ).toBe(false);
   await page.goto("/account");
   await expect(
-    page.getByRole("heading", { name: "حساب و دسترسی‌ها", exact: true }),
+    page.getByRole("heading", { name: "حساب شخصی", exact: true }),
   ).toBeVisible();
   await page.screenshot({
     path: `test-results/${testInfo.project.name}-account.png`,

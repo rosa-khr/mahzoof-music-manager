@@ -10,7 +10,7 @@ async function login(page: Page) {
     page.getByRole("heading", { name: "کارهای امروز", exact: true }),
   ).toBeVisible();
 }
-test("fixed labels, sm controls and persisted student active/archive switches", async ({
+test("floating labels, sm controls and persisted student active/archive switches", async ({
   page,
 }, info) => {
   const errors: string[] = [];
@@ -27,15 +27,17 @@ test("fixed labels, sm controls and persisted student active/archive switches", 
       height: input.height,
     };
   });
-  expect(before.gap).toBeGreaterThanOrEqual(0);
+  expect(before.gap).toBeLessThan(0);
   expect(before.height).toBe(38);
   await first.fill("سوییچ");
   await first.focus();
-  expect(
-    await first.evaluate(
-      (el) => el.nextElementSibling!.getBoundingClientRect().top,
-    ),
-  ).toBe(before.labelTop);
+  await expect
+    .poll(() =>
+      first.evaluate(
+        (el) => el.nextElementSibling!.getBoundingClientRect().top,
+      ),
+    )
+    .toBeLessThan(before.labelTop);
   await page
     .getByLabel("نام خانوادگی فارسی *", { exact: true })
     .fill(info.project.name);
@@ -98,7 +100,7 @@ test("fixed labels, sm controls and persisted student active/archive switches", 
   await expect(page.locator("app-badge")).toContainText("فعال");
   expect(errors).toEqual([]);
 });
-test("staff switch persists, cancellation restores state and last-admin protection remains", async ({
+test("user list is readonly; SweetAlert cancellation, lock, reload and last-admin protection", async ({
   page,
 }, info) => {
   await login(page);
@@ -113,26 +115,81 @@ test("staff switch persists, cancellation restores state and last-admin protecti
     },
   });
   expect(response.status()).toBe(201);
-  await page.goto("/account");
+  const user = await response.json();
+  const nativeDialogs: string[] = [];
+  page.on("dialog", (d) => {
+    nativeDialogs.push(d.type());
+    void d.dismiss();
+  });
+  await page.goto("/users");
+  await page.locator(".ag-header [col-id=username] input").fill(username);
+  await expect(page.locator("app-data-grid").getByRole("switch")).toHaveCount(
+    0,
+  );
+  await page
+    .getByRole("link", { name: "ویرایش کاربر " + username, exact: true })
+    .click();
   const toggle = page.getByRole("switch", {
-    name: "فعال بودن " + username,
+    name: "فعال بودن حساب",
     exact: true,
   });
-  await expect(toggle).toBeChecked();
-  page.once("dialog", (d) => d.dismiss());
-  await toggle.click();
-  await expect(toggle).toBeChecked();
-  page.once("dialog", (d) => d.accept());
   await toggle.uncheck();
-  await expect(toggle).not.toBeChecked();
-  await page.reload();
-  await expect(toggle).not.toBeChecked();
-  const admin = page.getByRole("switch", {
-    name: "فعال بودن e2e-admin",
-    exact: true,
+  await page
+    .getByRole("button", { name: "ذخیره تغییرات", exact: true })
+    .click();
+  const confirm = page.locator(".swal2-popup");
+  await expect(confirm).toBeVisible();
+  await expect(confirm).toContainText("قفل‌کردن حساب کاربر؟");
+  await confirm.evaluate(async (el) => {
+    await Promise.all(
+      el.getAnimations().map((animation) => animation.finished),
+    );
   });
-  page.once("dialog", (d) => d.accept());
-  await admin.click();
+  await page.screenshot({
+    path: `test-results/${info.project.name}-sweetalert-confirm.png`,
+    fullPage: true,
+  });
+  await confirm.getByRole("button", { name: "انصراف", exact: true }).click();
+  expect(
+    (await (await page.request.get("/api/users/" + user.id)).json()).active,
+  ).toBe(1);
+  await expect(toggle).not.toBeChecked();
+  await page
+    .getByRole("button", { name: "ذخیره تغییرات", exact: true })
+    .click();
+  await confirm
+    .getByRole("button", { name: "بله، ذخیره شود", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "مدیریت کاربران", exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  expect(
+    (await (await page.request.get("/api/users/" + user.id)).json()).active,
+  ).toBe(0);
+  await page.locator(".ag-header [col-id=username] input").fill(username);
+  if (info.project.name === "mobile")
+    await page.locator(".ag-body-horizontal-scroll-viewport").evaluate((el) => {
+      el.scrollLeft = -el.scrollWidth;
+    });
+  await expect(
+    page.locator("app-data-grid .ag-row [col-id=username]"),
+  ).toHaveCount(1);
+  await expect(page.locator("app-data-grid .status")).toHaveText("قفل‌شده");
+  await expect(page.locator("app-data-grid").getByRole("switch")).toHaveCount(
+    0,
+  );
+  await page.goto("/users/" + me.user.id + "/edit");
+  await toggle.uncheck();
+  await page
+    .getByRole("button", { name: "ذخیره تغییرات", exact: true })
+    .click();
+  await confirm
+    .getByRole("button", { name: "بله، ذخیره شود", exact: true })
+    .click();
   await expect(page.getByRole("alert")).toContainText("آخرین مدیر");
-  await expect(admin).toBeChecked();
+  expect(
+    (await (await page.request.get("/api/users/" + me.user.id)).json()).active,
+  ).toBe(1);
+  expect(nativeDialogs).toEqual([]);
 });

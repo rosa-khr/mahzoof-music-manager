@@ -47,7 +47,7 @@ test("AG Grid product-list layout, real server pagination, sorting, column filte
       .locator(".ag-row")
       .first()
       .evaluate((el) => el.getBoundingClientRect().height),
-  ).toBe(56);
+  ).toBe(60);
   expect(
     await grid
       .locator(".ag-header-cell")

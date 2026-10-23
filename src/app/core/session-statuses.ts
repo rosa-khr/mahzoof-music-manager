@@ -13,7 +13,7 @@ export class SessionStatuses {
   async load() {
     const data = await this.api.get<{
       items: { code: string; name: string }[];
-    }>("/base-data/session-statuses");
+    }>("/session-status-options");
     this.options = DEFAULT_SESSION_STATUSES.map(
       (defaultValue) =>
         data.items.find((item) => item.code === defaultValue.code) ||

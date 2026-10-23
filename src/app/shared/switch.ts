@@ -80,6 +80,7 @@ export function switchCell(
   label: string,
   checked: boolean,
   change: (input: HTMLInputElement) => void,
+  offText = "غیرفعال",
 ) {
   const wrapper = document.createElement("label");
   wrapper.className = "switch-control grid-switch";
@@ -94,7 +95,7 @@ export function switchCell(
   track.setAttribute("aria-hidden", "true");
   const value = document.createElement("span");
   value.className = "switch-value";
-  value.textContent = checked ? "فعال" : "غیرفعال";
+  value.textContent = checked ? "فعال" : offText;
   input.addEventListener("change", () => change(input));
   wrapper.append(input, track, value);
   return wrapper;

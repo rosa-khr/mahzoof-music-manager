@@ -1,20 +1,50 @@
-import { Component, Input, Pipe, PipeTransform } from "@angular/core";
-import jalaali from "jalaali-js";
-import { RouterLink } from "@angular/router";
+import {
+  Component,
+  Input,
+  Pipe,
+  PipeTransform,
+  ElementRef,
+  inject,
+  AfterViewInit,
+} from "@angular/core";
+export { isoToday, jalaliToday, toJalali, toIso } from "./jalali-date";
+import { RouterLink, Router } from "@angular/router";
+import { MENU_GROUPS } from "../core/navigation";
 @Component({
   selector: "app-field",
   standalone: true,
   template: '<div class="form-field"><ng-content /></div>',
 })
-export class Field {}
+export class Field implements AfterViewInit {
+  private element = inject<ElementRef<HTMLElement>>(ElementRef);
+  ngAfterViewInit() {
+    // A blank native placeholder lets CSS track empty, filled and autofilled values,
+    // including Reactive Forms writes and password reveal, without another value accessor.
+    const control = this.element.nativeElement.querySelector<
+      HTMLInputElement | HTMLTextAreaElement
+    >("input, textarea");
+    if (control) control.placeholder = " ";
+  }
+}
 @Component({
   selector: "app-header",
   standalone: true,
   imports: [RouterLink],
   template:
-    '<header class="page-header"><div class="page-heading"><h1>{{title}}</h1><nav class="breadcrumb-trail" aria-label="مسیر صفحه"><a routerLink="/">پیشخوان</a><span aria-hidden="true">•</span><span>{{title}}</span></nav><p class="page-subtitle">{{subtitle}}</p></div><div class="page-actions"><ng-content /></div></header>',
+    '<header class="page-header"><div class="page-heading"><h1>{{title}}</h1><nav class="breadcrumb-trail" aria-label="مسیر صفحه"><a routerLink="/">پیشخوان</a>@if(section && section !== "میز کار") {<span aria-hidden="true">/</span><span>{{section}}</span>}<span aria-hidden="true">/</span><span aria-current="page">{{title}}</span></nav><p class="page-subtitle">{{subtitle}}</p></div><div class="page-actions"><ng-content /></div></header>',
 })
 export class PageHeader {
+  private router = inject(Router);
+  get section() {
+    const path = this.router.url.split("?")[0];
+    return MENU_GROUPS.find((g) =>
+      g.items.some(
+        (item) =>
+          item.path !== "/" &&
+          (path === item.path || path.startsWith(item.path + "/")),
+      ),
+    )?.title;
+  }
   @Input() title = "";
   @Input() subtitle = "";
 }
@@ -38,6 +68,7 @@ export class Badge {
     unpaid: "پرداخت‌نشده",
     partial: "پرداخت جزئی",
     settled: "تسویه‌شده",
+    no_due: "بدون مبلغ قابل دریافت",
     active: "فعال",
     inactive: "غیرفعال",
     archived: "بایگانی",
@@ -69,37 +100,4 @@ export class PersianDate implements PipeTransform {
       ...(time ? { timeStyle: "short" as const } : {}),
     }).format(new Date(value.length === 10 ? value + "T12:00:00Z" : value));
   }
-}
-export function isoToday() {
-  const now = new Date();
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Tehran",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(now);
-  const p = (t: string) => parts.find((v) => v.type === t)!.value;
-  return `${p("year")}-${p("month")}-${p("day")}`;
-}
-export function jalaliToday() {
-  return toJalali(isoToday());
-}
-export function toJalali(value: string | null | undefined) {
-  if (!value) return "";
-  const [y, m, d] = value.split("-").map(Number);
-  const j = jalaali.toJalaali(y, m, d);
-  return `${j.jy}/${String(j.jm).padStart(2, "0")}/${String(j.jd).padStart(2, "0")}`;
-}
-export function toIso(value: string) {
-  if (!value) return "";
-  const normalized = value.replace(/[۰-۹]/g, (d) =>
-    String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)),
-  );
-  const match = /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/.exec(normalized);
-  if (!match) throw Error("تاریخ شمسی را با قالب ۱۴۰۵/۰۷/۲۷ وارد کنید");
-  const [y, m, d] = match.slice(1).map(Number);
-  if (!jalaali.isValidJalaaliDate(y, m, d))
-    throw Error("تاریخ شمسی نامعتبر است");
-  const g = jalaali.toGregorian(y, m, d);
-  return `${g.gy}-${String(g.gm).padStart(2, "0")}-${String(g.gd).padStart(2, "0")}`;
 }
