@@ -9,23 +9,26 @@ export class Api {
   router = inject(Router);
   user = signal<User | null>(null);
   csrf = "";
+  private endpoint(path: string) {
+    return "api" + path;
+  }
   get<T>(path: string) {
-    return firstValueFrom(this.http.get<T>("/api" + path));
+    return firstValueFrom(this.http.get<T>(this.endpoint(path)));
   }
   post<T>(path: string, body: unknown, key?: string) {
     return firstValueFrom(
-      this.http.post<T>("/api" + path, body, {
+      this.http.post<T>(this.endpoint(path), body, {
         headers: key ? { "Idempotency-Key": key } : {},
       }),
     );
   }
   patch<T>(path: string, body: unknown) {
-    return firstValueFrom(this.http.patch<T>("/api" + path, body));
+    return firstValueFrom(this.http.patch<T>(this.endpoint(path), body));
   }
-  file(path: string) { return firstValueFrom(this.http.get('/api'+path,{responseType:'blob'})); }
-  put<T>(path:string,body:unknown) {return firstValueFrom(this.http.put<T>('/api'+path,body));}
+  file(path: string) { return firstValueFrom(this.http.get(this.endpoint(path),{responseType:'blob'})); }
+  put<T>(path:string,body:unknown) {return firstValueFrom(this.http.put<T>(this.endpoint(path),body));}
   delete<T>(path: string) {
-    return firstValueFrom(this.http.delete<T>("/api" + path));
+    return firstValueFrom(this.http.delete<T>(this.endpoint(path)));
   }
   async restore() {
     try {

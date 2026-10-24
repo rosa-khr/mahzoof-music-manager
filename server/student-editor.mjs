@@ -122,7 +122,7 @@ export function photoUrl(db, id) {
     "SELECT revision FROM student_photos WHERE student_id=?",
     id,
   );
-  return photo ? `/api/students/${id}/photo?v=${photo.revision}` : null;
+  return photo ? `api/students/${id}/photo?v=${photo.revision}` : null;
 }
 export function studentPersonal(body, old = {}) {
   const address =

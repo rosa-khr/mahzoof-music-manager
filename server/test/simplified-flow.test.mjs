@@ -117,6 +117,26 @@ test("calculated term snapshots price, schedule and policy; full receipt is idem
   assert.equal(term.body.discount_type, "percent");
   assert.equal(term.body.schedules[0].start_time, "17:00");
   assert.ok(term.body.policy_id);
+  const policyAcceptances = await call(`/students/${created.body.id}/policy-acceptances`);
+  assert.equal(policyAcceptances.status, 200);
+  assert.equal(policyAcceptances.body.items[0].term_id, term.body.id);
+  assert.equal(policyAcceptances.body.items[0].acceptance_id, null);
+  const accepted = await call(`/students/${created.body.id}/policy-acceptances`, {
+    method: "POST",
+    body: { termId: term.body.id, policyId: term.body.policy_id, accepted: true },
+  });
+  assert.equal(accepted.status, 201, JSON.stringify(accepted.body));
+  assert.equal(accepted.body.statement, "قوانین را مطالعه کرده‌ام و پذیرفته‌ام.");
+  assert.equal((await call(`/students/${created.body.id}/policy-acceptances`, {
+    method: "POST",
+    body: { termId: term.body.id, policyId: term.body.policy_id, accepted: true },
+  })).status, 200);
+  assert.equal(one(db, "SELECT COUNT(*) n FROM student_policy_acceptances").n, 1);
+  assert.equal((await call(`/students/${created.body.id}/policy-acceptances`, {
+    method: "POST",
+    body: { termId: term.body.id, policyId: term.body.policy_id, accepted: false },
+  })).status, 422);
+  assert.equal((await call(`/students/${created.body.id}/policy-acceptances`, { user: accountant })).status, 403);
   const paymentBody = { studentId: created.body.id, invoiceId: term.body.invoice.id, receivedOn: "2026-10-20", method: "cash", reference: "TEST" };
   let receipt = await call("/full-tuition-payments", { method: "POST", body: paymentBody, key: "full-tuition-test-2026", user: accountant });
   assert.equal(receipt.status, 201, JSON.stringify(receipt.body));
@@ -134,6 +154,12 @@ test("calculated term snapshots price, schedule and policy; full receipt is idem
   assert.equal(print.body.student.interview_notes, "آماده شروع");
   assert.equal(print.body.student.internal_notes, undefined);
   assert.equal(print.body.policy.status, "published");
+  db.prepare("UPDATE student_terms SET policy_id=NULL WHERE id=?").run(term.body.id);
+  const legacyPrint = await call(`/students/${created.body.id}/print-data?termId=${term.body.id}`);
+  assert.equal(legacyPrint.status, 200);
+  assert.equal(legacyPrint.body.policy.id, term.body.policy_id);
+  assert.equal(legacyPrint.body.policy_fallback, true);
+  db.prepare("UPDATE student_terms SET policy_id=? WHERE id=?").run(term.body.policy_id, term.body.id);
   await t.test('retry payload mismatch, settled-term protection, explicit void and amendment history',async()=>{
     assert.equal((await call('/full-tuition-payments',{method:'POST',key:'full-tuition-test-2026',body:{...paymentBody,reference:'DIFFERENT'},user:accountant})).status,409);
     assert.equal((await call(`/students/${created.body.id}/print-data?termId=${term.body.id}`,{user:accountant})).status,403);

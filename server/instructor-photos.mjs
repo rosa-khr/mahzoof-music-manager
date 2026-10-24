@@ -82,7 +82,7 @@ export function installInstructorPhotos(app, db) {
       audit(db, req.user, "instructor-photo-updated", id, {});
     });
     const revision = one(db, "SELECT revision FROM instructor_photos WHERE instructor_id=?", id).revision;
-    res.json({ photo_url: `/api/instructors/${id}/photo?v=${revision}` });
+    res.json({ photo_url: `api/instructors/${id}/photo?v=${revision}` });
   });
 
   app.delete("/api/instructors/:id/photo", (req, res) => {

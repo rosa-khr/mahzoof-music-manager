@@ -1155,6 +1155,135 @@ main {
 .dossier-content > .tabs {
   gap: 20px;
 }
+.profile-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.overview-card {
+  min-width: 0;
+  padding: 16px 18px;
+  text-align: start;
+  border: 1px solid #e2e7ef;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+}
+.overview-card:hover {
+  border-color: #b9c7db;
+  box-shadow: 0 4px 14px rgba(30, 52, 82, .07);
+}
+.overview-card small,
+.overview-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+.overview-card b {
+  display: block;
+  margin: 7px 0 5px;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.overview-card--term { border-top: 3px solid #5686d8; }
+.overview-card--attendance { border-top: 3px solid #6d9c77; }
+.overview-card--finance { border-top: 3px solid #a27bb8; }
+.tab-count {
+  display: inline-grid;
+  min-width: 20px;
+  height: 20px;
+  place-items: center;
+  margin-inline-start: 5px;
+  border-radius: 10px;
+  background: #fff0dc;
+  color: #9b5f13;
+  font-size: 10px;
+}
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.section-heading h2 { margin: 0; }
+.section-heading h2 small { font-weight: 400; color: var(--muted); }
+.section-heading p { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
+.operational-section { padding: 22px; }
+.attendance-summary,
+.term-progress,
+.finance-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.attendance-summary span,
+.term-progress span,
+.finance-summary-grid article {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid #e3e7ee;
+  border-radius: 7px;
+  background: #fafbfc;
+}
+.attendance-summary small,
+.term-progress small,
+.finance-summary-grid small,
+.finance-summary-grid span {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+}
+.attendance-summary b,
+.term-progress b {
+  display: block;
+  margin-top: 4px;
+  font-size: 22px;
+}
+.attendance-summary .warning { background: #fffaf2; border-color: #f0dec1; }
+.term-progress { grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 16px 0; }
+.term-progress .primary { background: #f3f7fd; border-color: #cedbf0; }
+.finance-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; }
+.finance-summary-grid strong { display: block; margin: 6px 0; font-size: 20px; }
+.finance-summary-grid .next-due { margin-top: 12px; color: #7b5c22; }
+.policy-card { padding: 22px; }
+.policy-status {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border-radius: 12px;
+  background: #fff4e6;
+  color: #9a611c;
+  font-size: 11px;
+}
+.policy-status.accepted { background: #eaf6ed; color: #347047; }
+.policy-content {
+  padding: 18px 20px;
+  margin: 14px 0 18px;
+  border: 1px solid #e3e7ee;
+  border-radius: 7px;
+  background: #fafbfc;
+  line-height: 2;
+  font-size: 12px;
+}
+.policy-confirm {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 14px;
+  font-weight: 600;
+}
+.policy-confirm input { width: 18px; height: 18px; accent-color: var(--accent); }
+.acceptance-proof {
+  margin: 0;
+  padding: 12px 14px;
+  border-right: 3px solid #67a078;
+  background: #f2f8f4;
+  color: #3d6548;
+  font-size: 11px;
+}
 .dossier-section {
   padding: 0;
   overflow: hidden;
@@ -1232,6 +1361,11 @@ main {
   .dossier-section-body {
     padding: 20px 18px;
   }
+  .profile-overview,
+  .attendance-summary,
+  .finance-summary-grid { grid-template-columns: minmax(0, 1fr); }
+  .term-progress { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .section-heading { align-items: stretch; flex-direction: column; }
 }
 @media (min-width: 901px) {
   .student-dossier:not(.student-dossier--embedded) .profile-actions-content {

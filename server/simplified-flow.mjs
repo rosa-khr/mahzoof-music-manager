@@ -15,6 +15,7 @@ import { hashToken } from "./auth.mjs";
 export { calculateTuition } from "./tuition.mjs";
 
 const DEFAULT_POLICY = `<ol><li>عدم حضور مدرس، جلسه جبرانی دارد.</li><li>در صورت انصراف هنرجو، شهریه مسترد نمی‌شود.</li><li>غیبت هنرجو یک جلسه محسوب می‌شود و جبرانی ندارد.</li><li>هنرجو ۱۰ دقیقه پیش از کلاس در آموزشگاه حاضر باشد.</li></ol>`;
+const ACCEPTANCE_STATEMENT = "قوانین را مطالعه کرده‌ام و پذیرفته‌ام.";
 
 export function sanitizePolicyHtml(value) {
   let html = text(value, "متن قوانین", 30000, true);
@@ -118,6 +119,57 @@ export function installSimplifiedFlow(app, db) {
     res.json(one(db, "SELECT * FROM registration_policies WHERE id=?", id));
   });
 
+  app.get("/api/students/:id/policy-acceptances", (req, res) => {
+    assert(req.user.education, "مشاهده پذیرش قوانین نیازمند دسترسی آموزشی است", 403);
+    const studentId = integer(req.params.id, "هنرجو");
+    assert(one(db, "SELECT 1 FROM students WHERE id=?", studentId), "هنرجو یافت نشد", 404);
+    const items = all(
+      db,
+      `SELECT st.id term_id, st.number term_number, i.name instrument,
+              p.id policy_id, p.version policy_version, p.title policy_title,
+              p.content_html, p.effective_on, p.status policy_status,
+              a.id acceptance_id, a.statement, a.accepted_at,
+              u.username recorded_by_username
+         FROM student_terms st
+         JOIN enrollments e ON e.id=st.enrollment_id
+         JOIN terms t ON t.id=st.term_id
+         JOIN class_offerings c ON c.id=t.offering_id
+         LEFT JOIN instruments i ON i.id=COALESCE(c.instrument_id,e.instrument_id)
+         JOIN registration_policies p ON p.id=st.policy_id
+         LEFT JOIN student_policy_acceptances a
+           ON a.student_term_id=st.id AND a.policy_id=p.id
+         LEFT JOIN users u ON u.id=a.recorded_by
+        WHERE e.student_id=?
+        ORDER BY st.id DESC`,
+      studentId,
+    );
+    res.json({ items, statement: ACCEPTANCE_STATEMENT });
+  });
+
+  app.post("/api/students/:id/policy-acceptances", (req, res) => {
+    assert(req.user.education, "ثبت پذیرش قوانین نیازمند دسترسی آموزشی است", 403);
+    const studentId = integer(req.params.id, "هنرجو");
+    const termId = integer(req.body.termId, "ترم");
+    const policyId = integer(req.body.policyId, "نسخه قوانین");
+    assert(req.body.accepted === true, "تأیید مطالعه و پذیرش قوانین الزامی است");
+    const term = one(db, "SELECT st.id,e.student_id,st.policy_id FROM student_terms st JOIN enrollments e ON e.id=st.enrollment_id WHERE st.id=?", termId);
+    assert(term && term.student_id === studentId, "ترم متعلق به این هنرجو نیست", 404);
+    assert(term.policy_id === policyId, "نسخه قوانین با نسخه متصل به ترم یکسان نیست", 409);
+    const policy = one(db, "SELECT status FROM registration_policies WHERE id=?", policyId);
+    assert(policy?.status === "published", "فقط نسخه منتشرشده قوانین قابل پذیرش است", 409);
+    let created = false;
+    let acceptance;
+    transaction(db, () => {
+      acceptance = one(db, "SELECT * FROM student_policy_acceptances WHERE student_term_id=? AND policy_id=?", termId, policyId);
+      if (acceptance) return;
+      const id = Number(run(db, "INSERT INTO student_policy_acceptances(student_id,student_term_id,policy_id,statement,recorded_by) VALUES(?,?,?,?,?)", studentId, termId, policyId, ACCEPTANCE_STATEMENT, req.user.id).lastInsertRowid);
+      audit(db, req.user, "registration-policy-accepted", id, { studentId, termId, policyId });
+      acceptance = one(db, "SELECT * FROM student_policy_acceptances WHERE id=?", id);
+      created = true;
+    });
+    res.status(created ? 201 : 200).json(acceptance);
+  });
+
   app.get("/api/settings/letterhead", (_req, res) => {
     const row = one(db, "SELECT * FROM academy_letterhead WHERE id=1");
     res.json({ ...row, visible_fields: JSON.parse(row.visible_fields) });
@@ -196,8 +248,20 @@ export function installSimplifiedFlow(app, db) {
     assert(term.student_id === studentId, "ترم متعلق به هنرجو نیست", 404);
     const guardians = all(db, "SELECT g.*,sg.relationship FROM guardians g JOIN student_guardians sg ON sg.guardian_id=g.id WHERE sg.student_id=?", studentId);
     const policyId = termId ? term.policy_id : student.policy_id;
-    const policy = policyId ? one(db, 'SELECT * FROM registration_policies WHERE id=?', policyId) : null;
+    const policy = policyId
+      ? one(db, 'SELECT * FROM registration_policies WHERE id=?', policyId)
+      : one(
+          db,
+          `SELECT * FROM registration_policies
+            WHERE status='published'
+            ORDER BY CASE WHEN effective_on<=? THEN 0 ELSE 1 END,
+                     CASE WHEN effective_on<=? THEN effective_on END DESC,
+                     published_at DESC, version DESC
+            LIMIT 1`,
+          term.registered_on || student.first_registered || dateInZone(),
+          term.registered_on || student.first_registered || dateInZone(),
+        );
     const letterhead = one(db, "SELECT * FROM academy_letterhead WHERE id=1");
-    res.json({ student: { ...student, internal_notes: undefined }, guardians, term, schedules: termId ? all(db, "SELECT * FROM term_schedules WHERE student_term_id=? ORDER BY weekday,start_time", termId) : [], policy, letterhead: { ...letterhead, visible_fields: JSON.parse(letterhead.visible_fields) } });
+    res.json({ student: { ...student, internal_notes: undefined }, guardians, term, schedules: termId ? all(db, "SELECT * FROM term_schedules WHERE student_term_id=? ORDER BY weekday,start_time", termId) : [], policy, policy_fallback: !policyId && !!policy, letterhead: { ...letterhead, visible_fields: JSON.parse(letterhead.visible_fields) } });
   });
 }

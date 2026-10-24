@@ -128,7 +128,7 @@ export function studentGrid(db, query) {
     ).map(({ photo_revision, ...row }) => ({
       ...row,
       photo_url: photo_revision
-        ? `/api/students/${row.id}/photo?v=${photo_revision}`
+        ? `api/students/${row.id}/photo?v=${photo_revision}`
         : null,
     })),
     total: one(db, `SELECT COUNT(*) n FROM students ${where}`, ...args).n,

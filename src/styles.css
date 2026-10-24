@@ -1,40 +1,3 @@
-@font-face {
-  font-family: "Vazirmatn";
-  src: url("/fonts/vazirmatn/vazirmatn-arabic-400-normal.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Vazirmatn";
-  src: url("/fonts/vazirmatn/vazirmatn-arabic-500-normal.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Vazirmatn";
-  src: url("/fonts/vazirmatn/vazirmatn-arabic-600-normal.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Vazirmatn";
-  src: url("/fonts/vazirmatn/vazirmatn-arabic-700-normal.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Dana";
-  src: url("/fonts/dana/Dana-Light.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 300;
-  font-display: swap;
-}
-
 .settings-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
@@ -141,10 +104,18 @@
 .print-schedules > b { display: block; margin-bottom: 1mm; }
 .print-schedule { display: inline-block; padding: 1mm 2mm; margin: 0.5mm 0 0.5mm 1mm; border-radius: 1mm; background: #eef1f5; font-size: 8.5pt; }
 .print-empty-term { margin: 0 0 2mm; padding: 2.5mm; border: 1px dashed #cfd5df; background: #fafbfc; color: #687186; }
+.print-class-times { margin-top: 2mm; }
 .print-education-notes { margin-top: 2mm; }
 .print-policy { line-height: 1.75; }
-.signature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20mm; margin-top: 9mm; break-inside: avoid; }
-.signature-grid > div { min-height: 35mm; border-top: 1px solid #b6bbc5; padding-top: 3mm; }
+.print-policy-version { margin-bottom: 2mm; color: #667085; font-size: 8pt; }
+.print-policy-acceptance { margin: 3mm 0 0; padding: 2.5mm 3mm; border: 1px solid #cfd5df; background: #fafbfc; font-weight: 600; }
+.signature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; margin-top: 6mm; break-inside: avoid; }
+.signature-box { min-height: 48mm; margin: 0 !important; padding: 3mm; border: 1px solid #b6bbc5; border-radius: 1.5mm; }
+.signature-box h3 { margin: 0 0 3mm; padding-bottom: 2mm; border-bottom: 1px solid #e0e3e8; font-size: 10pt; }
+.signature-box p { margin: 2mm 0; }
+.signature-space,
+.stamp-space { display: grid; place-items: end center; height: 22mm; margin-top: 3mm; padding-bottom: 1.5mm; border: 1px dashed #aeb5c1; color: #8a93a3; font-size: 8pt; }
+.stamp-space { width: 35mm; margin-right: auto; margin-left: auto; border-radius: 50%; }
 
 @media (max-width: 800px) {
   .settings-grid { grid-template-columns: 1fr; }
@@ -152,6 +123,7 @@
   .print-letterhead { grid-template-columns: 70px 1fr; }
   .print-letterhead-contact { grid-column: 1 / -1; border-right: 0; border-top: 1px solid #e1e5eb; padding: 3mm 0 0; }
   .print-grid { grid-template-columns: 1fr 1fr; }
+  .signature-grid { grid-template-columns: 1fr; gap: 1rem; }
 }
 
 @media print {
@@ -164,34 +136,6 @@
   .workspace,
   #main-content { margin: 0 !important; padding: 0 !important; width: 100% !important; }
   .student-print-sheet { width: 210mm; min-height: 297mm; margin: 0; box-shadow: none; }
-}
-@font-face {
-  font-family: "Dana";
-  src: url("/fonts/dana/Dana-Regular.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Dana";
-  src: url("/fonts/dana/Dana-Medium.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Dana";
-  src: url("/fonts/dana/Dana-DemiBold.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Dana";
-  src: url("/fonts/dana/Dana-Bold.ttf") format("truetype");
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
 }
 :root {
   --accent: #1b84ff;

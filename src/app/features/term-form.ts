@@ -122,7 +122,7 @@ function minor(value: string, currency: string) {
             appDatepicker
             formControlName="startDate"
             dir="ltr"
-          /><label for="start">شروع شمسی</label></app-field
+          /><label for="start">تاریخ اولین جلسه *</label></app-field
         >
         <app-field
           ><input
@@ -135,8 +135,8 @@ function minor(value: string, currency: string) {
       </div>
       @if (step === 1) {
         <p class="form-text">
-          تاریخ شروع، جلسه اول است؛ پایان پیشنهادی بر اساس یک جلسه در هفته
-          محاسبه می‌شود و قابل ویرایش است.
+          تاریخ شروع، جلسه اول است. تاریخ همه جلسات بر اساس برنامه هفتگی ساخته
+          می‌شود و پس از تأیید شما مستقیماً در جدول حضور و غیاب قرار می‌گیرد.
         </p>
         @if (endManuallyEdited && endSuggestion) {
           <button
@@ -148,9 +148,7 @@ function minor(value: string, currency: string) {
           </button>
         }
         <h3>برنامه کلاس</h3>
-        <p class="form-text">
-          برنامه هفتگی الگو است؛ جلسه واقعی با تاریخ مشخص جداگانه ثبت می‌شود.
-        </p>
+        <p class="form-text">روز، ساعت و مدت کلاس را برای ساخت ردیف‌های جلسات مشخص کنید.</p>
         <div formArrayName="schedules">
           @for (row of form.controls.schedules.controls; track row; let i = $index) {
             <div class="form-grid" [formGroupName]="i">
@@ -181,10 +179,10 @@ function minor(value: string, currency: string) {
         @if (!form.controls.groupTermId.value) { <button type="button" class="btn btn-light btn-sm" (click)="addSchedule()">افزودن نوبت هفتگی</button> }
         @if (sessionSuggestions.length && !form.controls.groupTermId.value) {
           <div class="schedule-suggestions">
-            <h3>پیشنهاد تاریخ جلسات برای بازبینی</h3>
+            <h3>جلساتی که در جدول حضور و غیاب ثبت می‌شوند</h3>
             <ol>@for (item of sessionSuggestions; track item) { <li>{{ item }}</li> }</ol>
-            <p class="form-text">این فهرست فقط پیشنهاد است و جلسه‌ای را خودکار ثبت نمی‌کند.</p>
-            <app-switch formControlName="reserveProposed" label="این تاریخ‌ها را بازبینی کردم؛ همراه ترم رزرو شوند" />
+            <p class="form-text">تاریخ‌ها را بررسی کنید؛ ثبت آن‌ها بدون تأیید شما انجام نمی‌شود.</p>
+            <app-switch formControlName="reserveProposed" label="تاریخ جلسات را بررسی کردم؛ همه همراه ترم در جدول ثبت شوند *" />
           </div>
         }
       }
@@ -265,6 +263,10 @@ function minor(value: string, currency: string) {
             {{ form.controls.quota.value }} جلسه •
             {{ form.controls.durationMinutes.value || "مدت تعیین نشده" }}
           </dd>
+          @if (!form.controls.groupTermId.value) {
+            <dt>ثبت در حضور و غیاب</dt>
+            <dd>{{ proposed.length }} جلسه تأییدشده</dd>
+          }
           <dt>تخفیف</dt>
           <dd>{{ discountLabel }}</dd>
           <dt>شهریه نهایی</dt>
@@ -620,10 +622,17 @@ export class TermForm implements OnInit, OnDestroy {
         throw Error("تعداد جلسات را وارد کنید.");
       toIso(v.registeredOn);
       if (!v.registeredOn) throw Error("تاریخ ثبت‌نام را مشخص کنید.");
+      if (!v.startDate) throw Error("تاریخ اولین جلسه را مشخص کنید.");
+      if (!v.groupTermId && !v.schedules.some((row) => !!row.startTime))
+        throw Error("روز و ساعت برنامه کلاس را مشخص کنید.");
       const start = toIso(v.startDate),
         end = toIso(v.endDate);
       if (start && end && end < start)
         throw Error("پایان ترم نمی‌تواند قبل از شروع باشد.");
+      if (!v.groupTermId && this.proposed.length !== Number(digits(v.quota)))
+        throw Error("تاریخ همه جلسات قابل محاسبه نیست؛ برنامه کلاس را بررسی کنید.");
+      if (!v.groupTermId && !v.reserveProposed)
+        throw Error("برای ثبت ترم، تاریخ جلسات را بازبینی و تأیید کنید.");
     }
     if (stage === 2) {
       if (

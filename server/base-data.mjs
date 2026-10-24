@@ -64,7 +64,7 @@ function shapeRecord(row, c) {
     ...row,
     instrument_ids: JSON.parse(row.instrument_ids || "[]"),
     photo_url: row.photo_revision
-      ? `/api/instructors/${row.id}/photo?v=${row.photo_revision}`
+      ? `api/instructors/${row.id}/photo?v=${row.photo_revision}`
       : null,
   };
 }

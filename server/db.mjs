@@ -29,6 +29,7 @@ export function openDatabase(
     [13, "013_simplified_student_flow.sql"],
     [14, "014_workflow_safety.sql"],
     [15, "015_weekly_schedule_history.sql"],
+    [16, "016_student_policy_acceptances.sql"],
   ]) {
     if (
       db.prepare("SELECT 1 FROM schema_migrations WHERE version=?").get(version)

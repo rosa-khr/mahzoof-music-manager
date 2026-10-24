@@ -40,6 +40,22 @@ import { LearningPathEditor } from './learning-path-editor';
 import { TermTuitionEditor } from './term-tuition-editor';
 import { StudentDocuments } from './student-documents';
 import { requestReason } from '../shared/confirm';
+
+interface PolicyAcceptance {
+  term_id: number;
+  term_number: number;
+  instrument: string;
+  policy_id: number;
+  policy_version: number;
+  policy_title: string;
+  content_html: string;
+  effective_on: string;
+  policy_status: string;
+  acceptance_id: number | null;
+  statement: string | null;
+  accepted_at: string | null;
+  recorded_by_username: string | null;
+}
 @Component({
   selector: "app-student-profile",
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -88,12 +104,7 @@ import { requestReason } from '../shared/confirm';
                 >ویرایش هنرجو</a
               ><button class="btn btn-primary" (click)="open('term')">
                 ترم جدید</button
-              ><button
-                class="btn btn-outline-primary"
-                (click)="open('session')"
               >
-                ثبت جلسه
-              </button>
             }
             @if (api.user()?.finance) {
               <button class="btn btn-outline-primary" (click)="open('payment')">
@@ -206,12 +217,7 @@ import { requestReason } from '../shared/confirm';
             @if (api.user()?.education) {
               <button class="btn btn-primary" (click)="open('term')">
                 ترم جدید</button
-              ><button
-                class="btn btn-outline-primary"
-                (click)="open('session')"
               >
-                ثبت جلسه
-              </button>
             }
             @if (api.user()?.finance) {
               <button class="btn btn-outline-primary" (click)="open('payment')">
@@ -221,6 +227,29 @@ import { requestReason } from '../shared/confirm';
           </div>
           @if (message) {
             <p class="alert alert-success" role="status">{{ message }}</p>
+          }
+          @if (!embedded) {
+            <section class="profile-overview" aria-label="خلاصه عملیاتی پرونده">
+              <button class="overview-card overview-card--term" (click)="setTab('terms')">
+                <small>ترم جاری</small>
+                <b>{{ currentTermLabel }}</b>
+                <span>{{ currentTermTeacher }}</span>
+              </button>
+              @if (api.user()?.education) {
+                <button class="overview-card overview-card--attendance" (click)="setTab('attendance')">
+                  <small>وضعیت جلسات</small>
+                  <b>{{ currentRemaining }} جلسه باقی‌مانده</b>
+                  <span>{{ pendingSessionCount ? pendingSessionCount + ' جلسه نیازمند تعیین وضعیت' : 'جلسه معوقی برای تعیین وضعیت نیست' }}</span>
+                </button>
+              }
+              @if (api.user()?.finance) {
+                <button class="overview-card overview-card--finance" (click)="setTab('finance')">
+                  <small>مانده شهریه</small>
+                  <b>{{ primaryBalanceAmount | money: primaryBalanceCurrency }}</b>
+                  <span>{{ primaryBalanceNextLabel }}</span>
+                </button>
+              }
+            </section>
           }
           @if (action === "term") {
             <app-term-form
@@ -273,8 +302,14 @@ import { requestReason } from '../shared/confirm';
                 [class.active]="tab === 'terms'"
                 (click)="setTab('terms')"
               >
-                ترم‌ها و جلسات
+                ترم‌ها
               </button>
+              @if (api.user()?.education) {
+                <button [class.active]="tab === 'attendance'" (click)="setTab('attendance')">
+                  حضور و غیاب
+                  @if (pendingSessionCount) { <span class="tab-count">{{ pendingSessionCount }}</span> }
+                </button>
+              }
               @if (api.user()?.finance) {
                 <button
                   [class.active]="tab === 'finance'"
@@ -323,14 +358,24 @@ import { requestReason } from '../shared/confirm';
             </section>
           }
           @if (tab === "attendance" && api.user()?.education) {
-            <app-data-grid
-              title="جلسات و حضور و غیاب"
-              [rows]="attendanceRows"
-              [columns]="attendanceColumns"
-              [options]="attendanceOptions"
-              stateKey="profile-all-sessions"
-              (ready)="restoreAttendanceFilters($event)"
-            />
+            <section class="card operational-section">
+              <header class="section-heading">
+                <div><h2>حضور و غیاب</h2><p>همه جلسات در یک محل؛ فیلتر ترم و وضعیت داخل جدول است.</p></div>
+              </header>
+              <div class="attendance-summary">
+                <span><small>کل جلسات</small><b>{{ attendanceRows.length }}</b></span>
+                <span class="warning"><small>نیازمند تعیین وضعیت</small><b>{{ pendingSessionCount }}</b></span>
+                <span><small>غیبت‌ها</small><b>{{ absentSessionCount }}</b></span>
+              </div>
+              <app-data-grid
+                title="جلسات و حضور و غیاب"
+                [rows]="attendanceRows"
+                [columns]="attendanceColumns"
+                [options]="attendanceOptions"
+                stateKey="profile-all-sessions"
+                (ready)="restoreAttendanceFilters($event)"
+              />
+            </section>
           }
           @if (tab === "terms") {
             @if (api.user()?.education) {
@@ -360,28 +405,12 @@ import { requestReason } from '../shared/confirm';
                   <app-badge [value]="t.status" />
                 </div>
                 @if (t.counters; as c) {
-                  <div class="counter-grid">
-                    <span
-                      >سهم کل <b>{{ c.quota }}</b></span
-                    ><span
-                      >حاضر <b>{{ c.present }}</b></span
-                    ><span
-                      >غایب <b>{{ c.absent }}</b></span
-                    ><span
-                      >کنسل‌شده <b>{{ c.cancelled }}</b></span
-                    ><span
-                      >رزرو <b>{{ c.reserved }}</b></span
-                    ><span
-                      >مصرف‌شده <b>{{ c.consumed }}</b></span
-                    ><span
-                      >باقی‌مانده <b>{{ c.remaining }}</b></span
-                    ><span
-                      >قابل برنامه‌ریزی <b>{{ c.schedulable }}</b></span
-                    >
+                  <div class="term-progress">
+                    <span class="primary"><small>باقی‌مانده</small><b>{{ c.remaining }}</b></span>
+                    <span><small>مصرف‌شده از {{ c.quota }}</small><b>{{ c.consumed }}</b></span>
+                    <span><small>رزروشده</small><b>{{ c.reserved }}</b></span>
+                    <span><small>قابل برنامه‌ریزی</small><b>{{ c.schedulable }}</b></span>
                   </div>
-                  <p class="form-text">
-                    باقی‌مانده شامل {{ c.reserved }} جلسه رزروشده است.
-                  </p>
                 }
                 @if (api.user()?.education) {
                   <p>
@@ -410,12 +439,6 @@ import { requestReason } from '../shared/confirm';
                 }
                 <div class="actions">
                   @if (api.user()?.education) {
-                    <button
-                      class="btn btn-sm btn-outline-primary"
-                      (click)="open('session', t)"
-                    >
-                      رزرو جلسه
-                    </button>
                     @if (!hasRenewal(t.id)) {
                       <button
                         class="btn btn-sm"
@@ -441,16 +464,6 @@ import { requestReason } from '../shared/confirm';
                   }
                   <a class="btn btn-light btn-sm" [routerLink]="['/students',s.id,'print']" [queryParams]="{term:t.id}">چاپ این ترم</a>
                 </div>
-                @if (api.user()?.education) {
-                  <h3>جلسات و حضور و غیاب</h3>
-                  <app-data-grid
-                    title="جلسات و حضور و غیاب"
-                    [rows]="t.sessions || emptySessions"
-                    [columns]="sessionColumns(t.id)"
-                    stateKey="profile-sessions"
-                    height="360px"
-                  />
-                }
               </section>
             } @empty {
               <section class="card dossier-section">
@@ -489,36 +502,24 @@ import { requestReason } from '../shared/confirm';
             </section>
           }
           @if (tab === "finance") {
-            <section class="card">
-              <h2>خلاصه شهریه</h2>
+            <section class="card operational-section">
+              <header class="section-heading"><div><h2>وضعیت مالی</h2><p>مانده‌ها و نزدیک‌ترین سررسیدها در یک نگاه.</p></div><button class="btn btn-primary" (click)="open('payment')">ثبت پرداخت</button></header>
+              <div class="finance-summary-grid">
               @for (summary of tuitionSummaries; track summary.currency) {
-                <div class="invoice-summary">
-                  <span
-                    >شهریه: {{ summary.total | money: summary.currency }}</span
-                  >
-                  <span
-                    >پرداخت‌شده:
-                    {{ summary.paid | money: summary.currency }}</span
-                  >
-                  <span
-                    >مانده:
-                    {{ summary.balance | money: summary.currency }}</span
-                  >
+                <article>
+                  <small>مانده {{ summary.currency === 'USD' ? 'دلار' : 'تومان' }}</small>
+                  <strong>{{ summary.balance | money: summary.currency }}</strong>
+                  <span>پرداخت‌شده {{ summary.paid | money: summary.currency }} از {{ summary.total | money: summary.currency }}</span>
                   @if (summary.next) {
-                    <span
-                      >قسط بعدی:
-                      {{ summary.next.balance_minor | money: summary.currency }}
-                      • {{ summary.next.due_date | persianDate }}</span
-                    >
+                    <span class="next-due">قسط بعدی: {{ summary.next.balance_minor | money: summary.currency }} • {{ summary.next.due_date | persianDate }}</span>
                   }
-                </div>
+                </article>
               }
-              @if (installmentRows.length) {
-              <h2>اقساط و تعهدات — سابقه قبلی</h2>
-              <p class="form-text">
-                دریافت‌های هر ترم به ترتیب اقساط آن تخصیص می‌یابند. ثبت قسط به
-                معنی دریافت پول نیست.
-              </p>
+              </div>
+            </section>
+            @if (installmentRows.length) {
+            <section class="card operational-section">
+              <header class="section-heading"><div><h2>اقساط و تعهدات</h2><p>قسط، تعهد پرداخت است و به معنی دریافت وجه نیست.</p></div></header>
               <app-data-grid
                 title="اقساط و تعهدات"
                 [rows]="installmentRows"
@@ -526,8 +527,10 @@ import { requestReason } from '../shared/confirm';
                 stateKey="profile-installments"
                 height="360px"
               />
-              }
-              <h2>صورتحساب‌ها</h2>
+            </section>
+            }
+            <section class="card operational-section">
+              <header class="section-heading"><div><h2>صورتحساب ترم‌ها</h2><p>برای ثبت دریافت، ردیف ترم موردنظر را انتخاب کنید.</p></div></header>
               <app-data-grid
                 title="صورتحساب‌ها"
                 [rows]="financeTerms"
@@ -535,7 +538,9 @@ import { requestReason } from '../shared/confirm';
                 stateKey="profile-invoices"
                 height="360px"
               />
-              <h2 class="mt-4">دریافت‌ها</h2>
+            </section>
+            <section class="card operational-section">
+              <header class="section-heading"><div><h2>دریافت‌های ثبت‌شده</h2><p>سوابق واقعی دریافت وجه و اعتبار تخصیص‌نیافته.</p></div></header>
               <app-data-grid
                 title="دریافت‌ها"
                 [rows]="s.payments || emptyPayments"
@@ -547,21 +552,42 @@ import { requestReason } from '../shared/confirm';
                 اعتبار خودکار به ترم بعد تخصیص نمی‌یابد؛ استفاده صریح از اعتبار
                 در مرحله مالی تکمیل می‌شود.
               </p>
+            </section>
               @if (api.user()?.admin) {
+                <section class="card operational-section">
                 <h2>تاریخچه اصلاحات مالی</h2>
                 <app-data-grid title="تاریخچه مالی" [rows]="historyRows" [columns]="historyColumns" stateKey="student-financial-history" height="300px" />
+                </section>
               }
-            </section>
           }
           @if (tab === "documents") {
             <section class="card">
               <h2>قوانین و اسناد پرونده</h2>
-              <p>نسخه قوانین هر ثبت‌نام در زمان ساخت ترم به همان ترم متصل می‌شود و در چاپ پرونده نمایش داده می‌شود.</p>
+              <p>هر ترم نسخه قوانین زمان ثبت‌نام خود را نگه می‌دارد. پذیرش ثبت‌شده قابل حذف یا تغییر نیست.</p>
               <div class="actions">
                 <a class="btn btn-primary" [routerLink]="['/students', s.id, 'print']">چاپ پرونده و فرم پذیرش</a>
                 <a class="btn btn-light" routerLink="/certificate-requests">درخواست مدرک</a>
               </div>
             </section>
+            @if (api.user()?.education) {
+              @for (policy of policyAcceptances; track policy.term_id) {
+                <section class="card policy-card">
+                  <header class="section-heading">
+                    <div><h2>{{ policy.policy_title }} <small>نسخه {{ policy.policy_version }}</small></h2><p>{{ policy.instrument }} • ترم {{ policy.term_number }} • از {{ policy.effective_on | persianDate }}</p></div>
+                    <span class="policy-status" [class.accepted]="policy.acceptance_id">{{ policy.acceptance_id ? 'پذیرفته شده' : 'در انتظار پذیرش' }}</span>
+                  </header>
+                  <div class="policy-content" [innerHTML]="policy.content_html"></div>
+                  @if (policy.acceptance_id) {
+                    <p class="acceptance-proof">«{{ policy.statement }}» — ثبت در {{ policy.accepted_at | persianDate }} توسط {{ policy.recorded_by_username }}</p>
+                  } @else {
+                    <label class="policy-confirm"><input type="checkbox" [checked]="policyChecks.has(policy.term_id)" (change)="togglePolicy(policy.term_id, $event)" /> <span>قوانین را مطالعه کرده‌ام و پذیرفته‌ام.</span></label>
+                    <button class="btn btn-primary" [disabled]="!policyChecks.has(policy.term_id) || acceptingPolicy === policy.term_id" (click)="acceptPolicy(policy)">{{ acceptingPolicy === policy.term_id ? 'در حال ثبت…' : 'ثبت قطعی پذیرش' }}</button>
+                  }
+                </section>
+              } @empty {
+                <section class="card empty-state"><p>برای این هنرجو هنوز ترمی با نسخه قوانین ثبت نشده است.</p></section>
+              }
+            }
             @if (api.user()?.education) { <app-student-documents [student]="s" /> }
           }
         </div>
@@ -608,6 +634,9 @@ export class Profile implements OnInit {
     balance: number;
     next?: Installment;
   }[] = [];
+  policyAcceptances: PolicyAcceptance[] = [];
+  policyChecks = new Set<number>();
+  acceptingPolicy = 0;
   installmentColumns: ColDef<
     Installment & { termId: number; termLabel: string; currency: string }
   >[] = [
@@ -1010,6 +1039,47 @@ export class Profile implements OnInit {
   get visibleTerms() {
     return this.student?.terms || [];
   }
+  get currentTerm() {
+    const terms = this.student?.terms || [];
+    return terms.find((term) => term.status === "current") || terms[0] || null;
+  }
+  get currentTermLabel() {
+    return this.currentTerm
+      ? `${this.currentTerm.subject} • ترم ${this.currentTerm.number}`
+      : "ترم فعالی نیست";
+  }
+  get currentTermTeacher() {
+    return this.currentTerm?.teacher || "برای شروع، ترم جدید ثبت کنید";
+  }
+  get currentRemaining() {
+    return this.currentTerm?.counters?.remaining ?? 0;
+  }
+  get pendingSessionCount() {
+    return this.attendanceRows.filter(
+      (row) => row.status === "reserved" && this.isPast(row.starts_at),
+    ).length;
+  }
+  get absentSessionCount() {
+    return this.attendanceRows.filter((row) => row.status === "absent").length;
+  }
+  get primaryBalance() {
+    return (
+      this.tuitionSummaries.find((summary) => summary.balance > 0) ||
+      this.tuitionSummaries[0]
+    );
+  }
+  get primaryBalanceAmount() {
+    return this.primaryBalance?.balance || 0;
+  }
+  get primaryBalanceCurrency() {
+    return this.primaryBalance?.currency || "TOMAN";
+  }
+  get primaryBalanceNextLabel() {
+    const next = this.primaryBalance?.next;
+    return next
+      ? "قسط بعدی: " + this.persianDate.transform(next.due_date)
+      : "تعهد سررسیدداری ثبت نشده";
+  }
   ngOnInit() {
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroy)).subscribe(() => {
       const q = this.route.snapshot.queryParamMap;
@@ -1049,6 +1119,13 @@ export class Profile implements OnInit {
       this.student = await this.api.get<Student>(
         "/students/" + this.route.snapshot.paramMap.get("id"),
       );
+      this.policyAcceptances = this.api.user()?.education
+        ? (
+            await this.api.get<{ items: PolicyAcceptance[] }>(
+              `/students/${this.student.id}/policy-acceptances`,
+            )
+          ).items
+        : [];
       if(this.api.user()?.admin)this.historyRows=(await this.api.get<{items:any[]}>(`/students/${this.student.id}/workflow-history`)).items;
       if (this.api.user()?.education) await this.statusCatalog.load();
       this.sessionColumnCache.clear();
@@ -1075,7 +1152,7 @@ export class Profile implements OnInit {
             .filter((i) => i.currency === currency && i.balance_minor > 0)
             .sort((a, b) => a.due_date.localeCompare(b.due_date))[0],
         };
-      });
+      }).filter((summary) => summary.total > 0 || summary.balance > 0);
       this.attendanceTerms.clear();
       this.attendanceRows = this.student.terms.flatMap((t) =>
         (t.sessions || []).map((a) => {
@@ -1111,6 +1188,31 @@ export class Profile implements OnInit {
       queryParams: { tab: v, term: this.selectedTerm },
       replaceUrl: true,
     });
+  }
+  togglePolicy(termId: number, event: Event) {
+    const checked = (event.target as HTMLInputElement).checked;
+    if (checked) this.policyChecks.add(termId);
+    else this.policyChecks.delete(termId);
+  }
+  async acceptPolicy(policy: PolicyAcceptance) {
+    if (!this.student || !this.policyChecks.has(policy.term_id)) return;
+    this.acceptingPolicy = policy.term_id;
+    this.error = "";
+    try {
+      await this.api.post(`/students/${this.student.id}/policy-acceptances`, {
+        termId: policy.term_id,
+        policyId: policy.policy_id,
+        accepted: true,
+      });
+      this.message = "پذیرش قوانین با زمان و نسخه مربوط به ترم ثبت شد.";
+      this.policyChecks.delete(policy.term_id);
+      await this.load();
+    } catch (e) {
+      this.error = errorMessage(e);
+    } finally {
+      this.acceptingPolicy = 0;
+      this.cdr.markForCheck();
+    }
   }
   open(v: string, t?: Term) {
     this.selectedReplacement=0;

@@ -85,7 +85,7 @@ test("multipart create, private resized photo, versioned edit, replacement and d
   let s = r.body;
   assert.equal(s.version, 1);
   assert.ok(s.photo_url);
-  let p = await call(s.photo_url.replace("/api", ""));
+  let p = await call(s.photo_url.replace(/^\/?api/, ""));
   assert.equal(p.status, 200);
   assert.equal(p.headers.get("cache-control"), "private, no-store");
   const meta = await sharp(p.body).metadata();

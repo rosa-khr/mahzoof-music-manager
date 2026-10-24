@@ -1,0 +1,16 @@
+services:
+  mahzoof-academy:
+    build:
+      context: ..
+      dockerfile: Dockerfile.runtime
+    container_name: mahzoof-academy
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3002:3000"
+    environment:
+      DB_PATH: /data/mahzoof.sqlite
+      APP_ORIGIN: https://orenza.ir
+      COOKIE_SECURE: "true"
+      PDF_PUBLIC_URL: https://orenza.ir/mahzoofacademy/dl
+    volumes:
+      - ./data:/data

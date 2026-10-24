@@ -53,7 +53,7 @@ export function installPrivateDocuments(app,db) {
     let data;
     try {data=await sharp(req.file.buffer,{limitInputPixels:16000000}).rotate().resize({width:1200,height:1600,fit:'inside',withoutEnlargement:true}).png().toBuffer();} catch {throw new ApiError(422,'لوگو قابل خواندن نیست');}
     const revision=randomUUID();
-    transaction(db,()=>{run(db,'INSERT INTO letterhead_logo(id,data,revision) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data,revision=excluded.revision',data,revision);run(db,'UPDATE academy_letterhead SET logo_url=?,version=version+1 WHERE id=1','/api/students/letterhead-logo?v='+revision);audit(db,req.user,'letterhead-logo-updated',1,{});});
+    transaction(db,()=>{run(db,'INSERT INTO letterhead_logo(id,data,revision) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data,revision=excluded.revision',data,revision);run(db,'UPDATE academy_letterhead SET logo_url=?,version=version+1 WHERE id=1','api/students/letterhead-logo?v='+revision);audit(db,req.user,'letterhead-logo-updated',1,{});});
     res.json({ok:true});
   });
   // Kept under the student permission because it is used by every student print.
@@ -70,7 +70,7 @@ export function installPrivateDocuments(app,db) {
     let browser;activePdfs++;
     try {
       browser=await chromium.launch({headless:true,...(process.env.PDF_CHROME_PATH?{executablePath:process.env.PDF_CHROME_PATH}:{channel:'chrome'})});
-      const base=`http://127.0.0.1:${req.socket.localPort}`;
+      const base=(process.env.PDF_PUBLIC_URL || `http://127.0.0.1:${req.socket.localPort}`).replace(/\/$/,'');
       const context=await browser.newContext({serviceWorkers:'block'});
       await context.addCookies([{name:'mahzoof_session',value:req.token,url:base,httpOnly:true,sameSite:'Strict'}]);
       await context.route('**/*',route=>new URL(route.request().url()).origin===base?route.continue():route.abort());

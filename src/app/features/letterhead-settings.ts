@@ -35,7 +35,7 @@ interface Letterhead {
         <label class="btn btn-light">انتخاب لوگو<input type="file" class="visually-hidden" accept="image/png,image/jpeg,image/webp" (change)="uploadLogo($event)" /></label>
       </form>
       <section class="card letterhead-preview" aria-label="پیش‌نمایش سربرگ">
-        <img [src]="data?.logo_url || '/brand/mahzoof-logo-transparent.png'" alt="لوگوی آموزشگاه" />
+        <img [src]="(data?.logo_url || 'brand/mahzoof-logo-transparent.png').replace('/', '')" alt="لوگوی آموزشگاه" />
         <div><h2>{{ form.controls.nameFa.value }}</h2><p>{{ form.controls.nameEn.value }}</p><p>{{ form.controls.subtitle.value }}</p></div>
         <address>{{ form.controls.address.value }}<br />{{ form.controls.phone.value }} • {{ form.controls.mobile.value }}</address>
       </section>
